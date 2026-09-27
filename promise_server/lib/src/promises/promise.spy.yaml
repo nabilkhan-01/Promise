@@ -8,3 +8,5 @@ fields:
   dueTime: DateTime?
   createdAt: DateTime
   status: String
+  creatorConfirmed: bool, default=false
+  recipientConfirmed: bool, default=false

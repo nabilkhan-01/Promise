@@ -12,6 +12,8 @@
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'package:promise_client/src/protocol/promises/promise.dart' as _izrd4uei;
+import 'package:promise_client/src/protocol/promises/promise_activity.dart'
+    as _irwpjxuh;
 import 'package:serverpod_auth_core_client/serverpod_auth_core_client.dart'
     as _iacc;
 import 'package:serverpod_auth_idp_client/serverpod_auth_idp_client.dart'
@@ -19,8 +21,10 @@ import 'package:serverpod_auth_idp_client/serverpod_auth_idp_client.dart'
 import 'package:serverpod_client/serverpod_client.dart' as _isc;
 import 'greetings/greeting.dart' as _izw8z7ou;
 import 'promises/promise.dart' as _i9knynp5;
+import 'promises/promise_activity.dart' as _itvtbfbt;
 export 'greetings/greeting.dart';
 export 'promises/promise.dart';
+export 'promises/promise_activity.dart';
 export 'client.dart';
 
 class Protocol extends _isc.SerializationManager {
@@ -63,15 +67,28 @@ class Protocol extends _isc.SerializationManager {
     if (t == _i9knynp5.Promise) {
       return _i9knynp5.Promise.fromJson(data) as T;
     }
+    if (t == _itvtbfbt.PromiseActivity) {
+      return _itvtbfbt.PromiseActivity.fromJson(data) as T;
+    }
     if (t == _isc.getType<_izw8z7ou.Greeting?>()) {
       return (data != null ? _izw8z7ou.Greeting.fromJson(data) : null) as T;
     }
     if (t == _isc.getType<_i9knynp5.Promise?>()) {
       return (data != null ? _i9knynp5.Promise.fromJson(data) : null) as T;
     }
+    if (t == _isc.getType<_itvtbfbt.PromiseActivity?>()) {
+      return (data != null ? _itvtbfbt.PromiseActivity.fromJson(data) : null)
+          as T;
+    }
     if (t == List<_izrd4uei.Promise>) {
       return (data as List)
               .map((e) => deserialize<_izrd4uei.Promise>(e))
+              .toList()
+          as T;
+    }
+    if (t == List<_irwpjxuh.PromiseActivity>) {
+      return (data as List)
+              .map((e) => deserialize<_irwpjxuh.PromiseActivity>(e))
               .toList()
           as T;
     }
@@ -88,6 +105,7 @@ class Protocol extends _isc.SerializationManager {
     return switch (type) {
       _izw8z7ou.Greeting => 'Greeting',
       _i9knynp5.Promise => 'Promise',
+      _itvtbfbt.PromiseActivity => 'PromiseActivity',
       _ => null,
     };
   }
@@ -106,6 +124,8 @@ class Protocol extends _isc.SerializationManager {
         return 'Greeting';
       case _i9knynp5.Promise():
         return 'Promise';
+      case _itvtbfbt.PromiseActivity():
+        return 'PromiseActivity';
     }
     className = _iaic.Protocol().getClassNameForObject(data);
     if (className != null) {
@@ -133,6 +153,9 @@ class Protocol extends _isc.SerializationManager {
     }
     if (dataClassName == 'Promise') {
       return deserialize<_i9knynp5.Promise>(data['data']);
+    }
+    if (dataClassName == 'PromiseActivity') {
+      return deserialize<_itvtbfbt.PromiseActivity>(data['data']);
     }
     if (dataClassName.startsWith('serverpod_auth_idp.')) {
       data['className'] = dataClassName.substring(19);

@@ -13,6 +13,8 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'package:promise_server/src/generated/promises/promise.dart'
     as _ipgb4ryh;
+import 'package:promise_server/src/generated/promises/promise_activity.dart'
+    as _ih1o0d6l;
 import 'package:serverpod/protocol.dart' as _isp;
 import 'package:serverpod/serverpod.dart' as _is;
 import 'package:serverpod_auth_core_server/serverpod_auth_core_server.dart'
@@ -21,8 +23,10 @@ import 'package:serverpod_auth_idp_server/serverpod_auth_idp_server.dart'
     as _iais;
 import 'greetings/greeting.dart' as _izw8z7ou;
 import 'promises/promise.dart' as _i9knynp5;
+import 'promises/promise_activity.dart' as _itvtbfbt;
 export 'greetings/greeting.dart';
 export 'promises/promise.dart';
+export 'promises/promise_activity.dart';
 
 class Protocol extends _is.DatabaseSerializationManager {
   Protocol._();
@@ -87,8 +91,81 @@ class Protocol extends _is.DatabaseSerializationManager {
           isNullable: false,
           dartType: 'String',
         ),
+        _isp.ColumnDefinition(
+          name: 'creatorConfirmed',
+          columnType: _isp.ColumnType.boolean,
+          isNullable: false,
+          dartType: 'bool',
+          columnDefault: 'false',
+        ),
+        _isp.ColumnDefinition(
+          name: 'recipientConfirmed',
+          columnType: _isp.ColumnType.boolean,
+          isNullable: false,
+          dartType: 'bool',
+          columnDefault: 'false',
+        ),
       ],
       foreignKeys: [],
+      indexes: [],
+      managed: true,
+    ),
+    _isp.TableDefinition(
+      name: 'promise_activity',
+      dartName: 'PromiseActivity',
+      schema: 'public',
+      module: 'promise',
+      columns: [
+        _isp.ColumnDefinition(
+          name: 'id',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: false,
+          dartType: 'int?',
+          columnDefault: 'serial',
+        ),
+        _isp.ColumnDefinition(
+          name: 'promiseId',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: false,
+          dartType: 'int',
+        ),
+        _isp.ColumnDefinition(
+          name: 'type',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+        ),
+        _isp.ColumnDefinition(
+          name: 'message',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+        ),
+        _isp.ColumnDefinition(
+          name: 'status',
+          columnType: _isp.ColumnType.text,
+          isNullable: true,
+          dartType: 'String?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'createdAt',
+          columnType: _isp.ColumnType.timestampWithoutTimeZone,
+          isNullable: false,
+          dartType: 'DateTime',
+        ),
+      ],
+      foreignKeys: [
+        _isp.ForeignKeyDefinition(
+          constraintName: 'promise_activity_fk_0',
+          columns: ['promiseId'],
+          referenceTable: 'promise',
+          referenceTableSchema: 'public',
+          referenceColumns: ['id'],
+          onUpdate: _isp.ForeignKeyAction.noAction,
+          onDelete: _isp.ForeignKeyAction.noAction,
+          matchType: null,
+        ),
+      ],
       indexes: [],
       managed: true,
     ),
@@ -130,15 +207,28 @@ class Protocol extends _is.DatabaseSerializationManager {
     if (t == _i9knynp5.Promise) {
       return _i9knynp5.Promise.fromJson(data) as T;
     }
+    if (t == _itvtbfbt.PromiseActivity) {
+      return _itvtbfbt.PromiseActivity.fromJson(data) as T;
+    }
     if (t == _is.getType<_izw8z7ou.Greeting?>()) {
       return (data != null ? _izw8z7ou.Greeting.fromJson(data) : null) as T;
     }
     if (t == _is.getType<_i9knynp5.Promise?>()) {
       return (data != null ? _i9knynp5.Promise.fromJson(data) : null) as T;
     }
+    if (t == _is.getType<_itvtbfbt.PromiseActivity?>()) {
+      return (data != null ? _itvtbfbt.PromiseActivity.fromJson(data) : null)
+          as T;
+    }
     if (t == List<_ipgb4ryh.Promise>) {
       return (data as List)
               .map((e) => deserialize<_ipgb4ryh.Promise>(e))
+              .toList()
+          as T;
+    }
+    if (t == List<_ih1o0d6l.PromiseActivity>) {
+      return (data as List)
+              .map((e) => deserialize<_ih1o0d6l.PromiseActivity>(e))
               .toList()
           as T;
     }
@@ -158,6 +248,7 @@ class Protocol extends _is.DatabaseSerializationManager {
     return switch (type) {
       _izw8z7ou.Greeting => 'Greeting',
       _i9knynp5.Promise => 'Promise',
+      _itvtbfbt.PromiseActivity => 'PromiseActivity',
       _ => null,
     };
   }
@@ -176,6 +267,8 @@ class Protocol extends _is.DatabaseSerializationManager {
         return 'Greeting';
       case _i9knynp5.Promise():
         return 'Promise';
+      case _itvtbfbt.PromiseActivity():
+        return 'PromiseActivity';
     }
     className = _iais.Protocol().getClassNameForObject(data);
     if (className != null) {
@@ -207,6 +300,9 @@ class Protocol extends _is.DatabaseSerializationManager {
     }
     if (dataClassName == 'Promise') {
       return deserialize<_i9knynp5.Promise>(data['data']);
+    }
+    if (dataClassName == 'PromiseActivity') {
+      return deserialize<_itvtbfbt.PromiseActivity>(data['data']);
     }
     if (dataClassName.startsWith('serverpod_auth_idp.')) {
       data['className'] = dataClassName.substring(19);
@@ -251,6 +347,8 @@ class Protocol extends _is.DatabaseSerializationManager {
     switch (t) {
       case _i9knynp5.Promise:
         return _i9knynp5.Promise.t;
+      case _itvtbfbt.PromiseActivity:
+        return _itvtbfbt.PromiseActivity.t;
     }
     return null;
   }

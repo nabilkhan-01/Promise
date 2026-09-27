@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:promise_client/promise_client.dart';
 import 'client.dart';
 import 'screens/create_promise_screen.dart';
+import 'screens/promise_preparation_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -81,14 +82,40 @@ class _PromiseHomePageState extends State<PromiseHomePage> {
   }
 
   Future<void> _navigateToCreatePromise() async {
-    final result = await Navigator.push<Promise?>(
+    final createdPromise = await Navigator.push<Promise?>(
       context,
       MaterialPageRoute(
         builder: (context) => const CreatePromiseScreen(),
       ),
     );
 
-    if (result != null) {
+    if (createdPromise != null && mounted) {
+      _loadPromises();
+      final updated = await Navigator.push<bool?>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PromisePreparationScreen(
+            initialPromise: createdPromise,
+          ),
+        ),
+      );
+      if (updated == true && mounted) {
+        _loadPromises();
+      }
+    }
+  }
+
+  Future<void> _openPromiseDetails(Promise promise) async {
+    final updated = await Navigator.push<bool?>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PromisePreparationScreen(
+          initialPromise: promise,
+        ),
+      ),
+    );
+
+    if (updated == true && mounted) {
       _loadPromises();
     }
   }
@@ -252,7 +279,10 @@ class _PromiseHomePageState extends State<PromiseHomePage> {
           }
 
           final promise = _promises[index - 1];
-          return PromiseCard(promise: promise);
+          return PromiseCard(
+            promise: promise,
+            onTap: () => _openPromiseDetails(promise),
+          );
         },
       ),
     );
@@ -261,8 +291,13 @@ class _PromiseHomePageState extends State<PromiseHomePage> {
 
 class PromiseCard extends StatelessWidget {
   final Promise promise;
+  final VoidCallback onTap;
 
-  const PromiseCard({super.key, required this.promise});
+  const PromiseCard({
+    super.key,
+    required this.promise,
+    required this.onTap,
+  });
 
   String _formatDate(DateTime date) {
     const months = [
@@ -282,7 +317,7 @@ class PromiseCard extends StatelessWidget {
     const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     final localDate = date.toLocal();
     final weekday = weekdays[localDate.weekday - 1];
-    final month = months[date.month - 1];
+    final month = months[localDate.month - 1];
     return '$weekday, $month ${localDate.day}, ${localDate.year}';
   }
 
@@ -303,15 +338,29 @@ class PromiseCard extends StatelessWidget {
 
     Color statusBgColor;
     Color statusTextColor;
+    String statusLabel = promise.status;
+
     switch (promise.status.toLowerCase()) {
       case 'completed':
         statusBgColor = Colors.green.withAlpha(38);
         statusTextColor = Colors.green.shade800;
+        statusLabel = 'Completed';
+        break;
+      case 'awaiting_confirmation':
+        statusBgColor = Colors.amber.withAlpha(45);
+        statusTextColor = Colors.amber.shade900;
+        statusLabel = 'Awaiting Conf.';
+        break;
+      case 'in_progress':
+        statusBgColor = Colors.orange.withAlpha(38);
+        statusTextColor = Colors.orange.shade800;
+        statusLabel = 'In Progress';
         break;
       case 'pending':
       default:
         statusBgColor = colorScheme.primaryContainer;
         statusTextColor = colorScheme.onPrimaryContainer;
+        statusLabel = 'Pending';
         break;
     }
 
@@ -324,116 +373,120 @@ class PromiseCard extends StatelessWidget {
           color: colorScheme.outlineVariant.withValues(alpha: 0.6),
         ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
-                    promise.title,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      promise.title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: statusBgColor,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    promise.status.toUpperCase(),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: statusTextColor,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: statusBgColor,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      statusLabel.toUpperCase(),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: statusTextColor,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(
-                  Icons.person_outline,
-                  size: 18,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 6),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(
+                    Icons.person_outline,
+                    size: 18,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Promised to ',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      promise.promisedTo,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              if (promise.description != null &&
+                  promise.description!.isNotEmpty) ...[
+                const SizedBox(height: 8),
                 Text(
-                  'Promised to ',
+                  promise.description!,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),
-                ),
-                Expanded(
-                  child: Text(
-                    promise.promisedTo,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
-            ),
-            if (promise.description != null &&
-                promise.description!.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(
-                promise.description!,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-            const SizedBox(height: 12),
-            const Divider(height: 1),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(
-                  Icons.calendar_today_outlined,
-                  size: 16,
-                  color: colorScheme.primary,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  _formatDate(promise.dueDate),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                if (promise.dueTime != null) ...[
-                  const SizedBox(width: 12),
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+              Row(
+                children: [
                   Icon(
-                    Icons.access_time_outlined,
+                    Icons.calendar_today_outlined,
                     size: 16,
                     color: colorScheme.primary,
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    _formatTime(promise.dueTime!),
+                    _formatDate(promise.dueDate),
                     style: theme.textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w500,
                     ),
                   ),
+                  if (promise.dueTime != null) ...[
+                    const SizedBox(width: 12),
+                    Icon(
+                      Icons.access_time_outlined,
+                      size: 16,
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _formatTime(promise.dueTime!),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );

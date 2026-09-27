@@ -1,19 +1,53 @@
-# Files and directories created by pub
+# ----------------------------------------
+# Dart / Flutter
+# ----------------------------------------
+
 .dart_tool/
 .packages
+.pub/
+build/
+**/build/
 
 # Pubspec overrides
 pubspec_overrides.yaml
 
-# Agents
+# Flutter generated files
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
+
+
+# ----------------------------------------
+# IDE / Editor
+# ----------------------------------------
+
+.idea/
+.vscode/
+.vscode/mcp.json
+
+# ----------------------------------------
+# AI / Agent tooling
+# ----------------------------------------
+
 .dart_skills/
 .agents/
 .claude/
 .gemini/
 .cursor/
-.vscode/mcp.json
 .codex/
 .mcp.json
 
+
+# ----------------------------------------
 # Serverpod Cloud CLI
+# ----------------------------------------
+
 .scloud/
+
+
+# ----------------------------------------
+# OS files
+# ----------------------------------------
+
+.DS_Store
+Thumbs.db

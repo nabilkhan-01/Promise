@@ -1,0 +1,8 @@
+class: PromiseActivity
+table: promise_activity
+fields:
+  promiseId: int, relation(parent=promise)
+  type: String
+  message: String
+  status: String?
+  createdAt: DateTime

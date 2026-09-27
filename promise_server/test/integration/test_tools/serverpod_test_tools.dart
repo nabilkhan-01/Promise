@@ -17,6 +17,8 @@ import 'package:promise_server/src/generated/greetings/greeting.dart'
     as _i5mv1l2b;
 import 'package:promise_server/src/generated/promises/promise.dart'
     as _ipgb4ryh;
+import 'package:promise_server/src/generated/promises/promise_activity.dart'
+    as _ih1o0d6l;
 import 'package:serverpod/serverpod.dart' as _is;
 import 'package:serverpod_auth_core_server/serverpod_auth_core_server.dart'
     as _iacs;
@@ -613,6 +615,214 @@ class _PromiseEndpoint {
                   _localCallContext.arguments,
                 )
                 as _ida.Future<List<_ipgb4ryh.Promise>>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _ida.Future<_ipgb4ryh.Promise?> getPromise(
+    _ist.TestSessionBuilder sessionBuilder,
+    int id,
+  ) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'promise',
+            method: 'getPromise',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'promise',
+          methodName: 'getPromise',
+          parameters: _ist.testObjectToJson({'id': id}),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<_ipgb4ryh.Promise?>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _ida.Future<List<_ih1o0d6l.PromiseActivity>> getActivities(
+    _ist.TestSessionBuilder sessionBuilder,
+    int promiseId,
+  ) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'promise',
+            method: 'getActivities',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'promise',
+          methodName: 'getActivities',
+          parameters: _ist.testObjectToJson({'promiseId': promiseId}),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<List<_ih1o0d6l.PromiseActivity>>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _ida.Future<_ih1o0d6l.PromiseActivity> addActivity(
+    _ist.TestSessionBuilder sessionBuilder,
+    int promiseId,
+    String type,
+    String message, {
+    String? activityStatus,
+  }) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'promise',
+            method: 'addActivity',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'promise',
+          methodName: 'addActivity',
+          parameters: _ist.testObjectToJson({
+            'promiseId': promiseId,
+            'type': type,
+            'message': message,
+            'activityStatus': activityStatus,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<_ih1o0d6l.PromiseActivity>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _ida.Future<_ipgb4ryh.Promise> confirmPromiseCompletion(
+    _ist.TestSessionBuilder sessionBuilder,
+    int promiseId,
+    String role,
+  ) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'promise',
+            method: 'confirmPromiseCompletion',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'promise',
+          methodName: 'confirmPromiseCompletion',
+          parameters: _ist.testObjectToJson({
+            'promiseId': promiseId,
+            'role': role,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<_ipgb4ryh.Promise>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _ida.Future<_ipgb4ryh.Promise> requestChanges(
+    _ist.TestSessionBuilder sessionBuilder,
+    int promiseId,
+    String role,
+    String reason,
+  ) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'promise',
+            method: 'requestChanges',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'promise',
+          methodName: 'requestChanges',
+          parameters: _ist.testObjectToJson({
+            'promiseId': promiseId,
+            'role': role,
+            'reason': reason,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<_ipgb4ryh.Promise>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _ida.Future<_ipgb4ryh.Promise> updatePromiseStatus(
+    _ist.TestSessionBuilder sessionBuilder,
+    int promiseId,
+    String newStatus,
+  ) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'promise',
+            method: 'updatePromiseStatus',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'promise',
+          methodName: 'updatePromiseStatus',
+          parameters: _ist.testObjectToJson({
+            'promiseId': promiseId,
+            'newStatus': newStatus,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<_ipgb4ryh.Promise>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();

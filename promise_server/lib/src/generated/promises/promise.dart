@@ -23,7 +23,10 @@ abstract class Promise
     this.dueTime,
     required this.createdAt,
     required this.status,
-  });
+    bool? creatorConfirmed,
+    bool? recipientConfirmed,
+  }) : creatorConfirmed = creatorConfirmed ?? false,
+       recipientConfirmed = recipientConfirmed ?? false;
 
   factory Promise({
     int? id,
@@ -34,6 +37,8 @@ abstract class Promise
     DateTime? dueTime,
     required DateTime createdAt,
     required String status,
+    bool? creatorConfirmed,
+    bool? recipientConfirmed,
   }) = _PromiseImpl;
 
   factory Promise.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -50,6 +55,16 @@ abstract class Promise
         jsonSerialization['createdAt'],
       ),
       status: jsonSerialization['status'] as String,
+      creatorConfirmed: jsonSerialization['creatorConfirmed'] == null
+          ? null
+          : _is.BoolJsonExtension.fromJson(
+              jsonSerialization['creatorConfirmed'],
+            ),
+      recipientConfirmed: jsonSerialization['recipientConfirmed'] == null
+          ? null
+          : _is.BoolJsonExtension.fromJson(
+              jsonSerialization['recipientConfirmed'],
+            ),
     );
   }
 
@@ -74,6 +89,10 @@ abstract class Promise
 
   String status;
 
+  bool creatorConfirmed;
+
+  bool recipientConfirmed;
+
   @override
   _is.Table<int?> get table => t;
 
@@ -89,6 +108,8 @@ abstract class Promise
     DateTime? dueTime,
     DateTime? createdAt,
     String? status,
+    bool? creatorConfirmed,
+    bool? recipientConfirmed,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -102,6 +123,8 @@ abstract class Promise
       if (dueTime != null) 'dueTime': dueTime?.toJson(),
       'createdAt': createdAt.toJson(),
       'status': status,
+      'creatorConfirmed': creatorConfirmed,
+      'recipientConfirmed': recipientConfirmed,
     };
   }
 
@@ -117,6 +140,8 @@ abstract class Promise
       if (dueTime != null) 'dueTime': dueTime?.toJson(),
       'createdAt': createdAt.toJson(),
       'status': status,
+      'creatorConfirmed': creatorConfirmed,
+      'recipientConfirmed': recipientConfirmed,
     };
   }
 
@@ -160,6 +185,8 @@ class _PromiseImpl extends Promise {
     DateTime? dueTime,
     required DateTime createdAt,
     required String status,
+    bool? creatorConfirmed,
+    bool? recipientConfirmed,
   }) : super._(
          id: id,
          title: title,
@@ -169,6 +196,8 @@ class _PromiseImpl extends Promise {
          dueTime: dueTime,
          createdAt: createdAt,
          status: status,
+         creatorConfirmed: creatorConfirmed,
+         recipientConfirmed: recipientConfirmed,
        );
 
   /// Returns a shallow copy of this [Promise]
@@ -184,6 +213,8 @@ class _PromiseImpl extends Promise {
     Object? dueTime = _Undefined,
     DateTime? createdAt,
     String? status,
+    bool? creatorConfirmed,
+    bool? recipientConfirmed,
   }) {
     return Promise(
       id: id is int? ? id : this.id,
@@ -194,6 +225,8 @@ class _PromiseImpl extends Promise {
       dueTime: dueTime is DateTime? ? dueTime : this.dueTime,
       createdAt: createdAt ?? this.createdAt,
       status: status ?? this.status,
+      creatorConfirmed: creatorConfirmed ?? this.creatorConfirmed,
+      recipientConfirmed: recipientConfirmed ?? this.recipientConfirmed,
     );
   }
 }
@@ -238,6 +271,16 @@ class PromiseUpdateTable extends _is.UpdateTable<PromiseTable> {
     table.status,
     value,
   );
+
+  _is.ColumnValue<bool, bool> creatorConfirmed(bool value) => _is.ColumnValue(
+    table.creatorConfirmed,
+    value,
+  );
+
+  _is.ColumnValue<bool, bool> recipientConfirmed(bool value) => _is.ColumnValue(
+    table.recipientConfirmed,
+    value,
+  );
 }
 
 class PromiseTable extends _is.Table<int?> {
@@ -271,6 +314,16 @@ class PromiseTable extends _is.Table<int?> {
       'status',
       this,
     );
+    creatorConfirmed = _is.ColumnBool(
+      'creatorConfirmed',
+      this,
+      hasDefault: true,
+    );
+    recipientConfirmed = _is.ColumnBool(
+      'recipientConfirmed',
+      this,
+      hasDefault: true,
+    );
   }
 
   late final PromiseUpdateTable updateTable;
@@ -289,6 +342,10 @@ class PromiseTable extends _is.Table<int?> {
 
   late final _is.ColumnString status;
 
+  late final _is.ColumnBool creatorConfirmed;
+
+  late final _is.ColumnBool recipientConfirmed;
+
   @override
   List<_is.Column> get columns => [
     id,
@@ -299,6 +356,8 @@ class PromiseTable extends _is.Table<int?> {
     dueTime,
     createdAt,
     status,
+    creatorConfirmed,
+    recipientConfirmed,
   ];
 }
 

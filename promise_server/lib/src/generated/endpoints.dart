@@ -315,6 +315,162 @@ class Endpoints extends _is.EndpointDispatch {
               ) async => (endpoints['promise'] as _itrz4nk3.PromiseEndpoint)
                   .getPromises(session),
         ),
+        'getPromise': _is.MethodConnector(
+          name: 'getPromise',
+          params: {
+            'id': _is.ParameterDescription(
+              name: 'id',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['promise'] as _itrz4nk3.PromiseEndpoint)
+                  .getPromise(
+                    session,
+                    params['id'],
+                  ),
+        ),
+        'getActivities': _is.MethodConnector(
+          name: 'getActivities',
+          params: {
+            'promiseId': _is.ParameterDescription(
+              name: 'promiseId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['promise'] as _itrz4nk3.PromiseEndpoint)
+                  .getActivities(
+                    session,
+                    params['promiseId'],
+                  ),
+        ),
+        'addActivity': _is.MethodConnector(
+          name: 'addActivity',
+          params: {
+            'promiseId': _is.ParameterDescription(
+              name: 'promiseId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+            'type': _is.ParameterDescription(
+              name: 'type',
+              type: _is.getType<String>(),
+              nullable: false,
+            ),
+            'message': _is.ParameterDescription(
+              name: 'message',
+              type: _is.getType<String>(),
+              nullable: false,
+            ),
+            'activityStatus': _is.ParameterDescription(
+              name: 'activityStatus',
+              type: _is.getType<String?>(),
+              nullable: true,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['promise'] as _itrz4nk3.PromiseEndpoint)
+                  .addActivity(
+                    session,
+                    params['promiseId'],
+                    params['type'],
+                    params['message'],
+                    activityStatus: params['activityStatus'],
+                  ),
+        ),
+        'confirmPromiseCompletion': _is.MethodConnector(
+          name: 'confirmPromiseCompletion',
+          params: {
+            'promiseId': _is.ParameterDescription(
+              name: 'promiseId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+            'role': _is.ParameterDescription(
+              name: 'role',
+              type: _is.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['promise'] as _itrz4nk3.PromiseEndpoint)
+                  .confirmPromiseCompletion(
+                    session,
+                    params['promiseId'],
+                    params['role'],
+                  ),
+        ),
+        'requestChanges': _is.MethodConnector(
+          name: 'requestChanges',
+          params: {
+            'promiseId': _is.ParameterDescription(
+              name: 'promiseId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+            'role': _is.ParameterDescription(
+              name: 'role',
+              type: _is.getType<String>(),
+              nullable: false,
+            ),
+            'reason': _is.ParameterDescription(
+              name: 'reason',
+              type: _is.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['promise'] as _itrz4nk3.PromiseEndpoint)
+                  .requestChanges(
+                    session,
+                    params['promiseId'],
+                    params['role'],
+                    params['reason'],
+                  ),
+        ),
+        'updatePromiseStatus': _is.MethodConnector(
+          name: 'updatePromiseStatus',
+          params: {
+            'promiseId': _is.ParameterDescription(
+              name: 'promiseId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+            'newStatus': _is.ParameterDescription(
+              name: 'newStatus',
+              type: _is.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['promise'] as _itrz4nk3.PromiseEndpoint)
+                  .updatePromiseStatus(
+                    session,
+                    params['promiseId'],
+                    params['newStatus'],
+                  ),
+        ),
       },
     );
     modules['serverpod_auth_idp'] = _iais.Endpoints()

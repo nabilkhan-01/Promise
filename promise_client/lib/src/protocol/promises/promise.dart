@@ -23,7 +23,10 @@ abstract class Promise
     this.dueTime,
     required this.createdAt,
     required this.status,
-  });
+    bool? creatorConfirmed,
+    bool? recipientConfirmed,
+  }) : creatorConfirmed = creatorConfirmed ?? false,
+       recipientConfirmed = recipientConfirmed ?? false;
 
   factory Promise({
     int? id,
@@ -34,6 +37,8 @@ abstract class Promise
     DateTime? dueTime,
     required DateTime createdAt,
     required String status,
+    bool? creatorConfirmed,
+    bool? recipientConfirmed,
   }) = _PromiseImpl;
 
   factory Promise.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -52,6 +57,16 @@ abstract class Promise
         jsonSerialization['createdAt'],
       ),
       status: jsonSerialization['status'] as String,
+      creatorConfirmed: jsonSerialization['creatorConfirmed'] == null
+          ? null
+          : _isc.BoolJsonExtension.fromJson(
+              jsonSerialization['creatorConfirmed'],
+            ),
+      recipientConfirmed: jsonSerialization['recipientConfirmed'] == null
+          ? null
+          : _isc.BoolJsonExtension.fromJson(
+              jsonSerialization['recipientConfirmed'],
+            ),
     );
   }
 
@@ -74,6 +89,10 @@ abstract class Promise
 
   String status;
 
+  bool creatorConfirmed;
+
+  bool recipientConfirmed;
+
   /// Returns a shallow copy of this [Promise]
   /// with some or all fields replaced by the given arguments.
   @_isc.useResult
@@ -86,6 +105,8 @@ abstract class Promise
     DateTime? dueTime,
     DateTime? createdAt,
     String? status,
+    bool? creatorConfirmed,
+    bool? recipientConfirmed,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -99,6 +120,8 @@ abstract class Promise
       if (dueTime != null) 'dueTime': dueTime?.toJson(),
       'createdAt': createdAt.toJson(),
       'status': status,
+      'creatorConfirmed': creatorConfirmed,
+      'recipientConfirmed': recipientConfirmed,
     };
   }
 
@@ -114,6 +137,8 @@ abstract class Promise
       if (dueTime != null) 'dueTime': dueTime?.toJson(),
       'createdAt': createdAt.toJson(),
       'status': status,
+      'creatorConfirmed': creatorConfirmed,
+      'recipientConfirmed': recipientConfirmed,
     };
   }
 
@@ -135,6 +160,8 @@ class _PromiseImpl extends Promise {
     DateTime? dueTime,
     required DateTime createdAt,
     required String status,
+    bool? creatorConfirmed,
+    bool? recipientConfirmed,
   }) : super._(
          id: id,
          title: title,
@@ -144,6 +171,8 @@ class _PromiseImpl extends Promise {
          dueTime: dueTime,
          createdAt: createdAt,
          status: status,
+         creatorConfirmed: creatorConfirmed,
+         recipientConfirmed: recipientConfirmed,
        );
 
   /// Returns a shallow copy of this [Promise]
@@ -159,6 +188,8 @@ class _PromiseImpl extends Promise {
     Object? dueTime = _Undefined,
     DateTime? createdAt,
     String? status,
+    bool? creatorConfirmed,
+    bool? recipientConfirmed,
   }) {
     return Promise(
       id: id is int? ? id : this.id,
@@ -169,6 +200,8 @@ class _PromiseImpl extends Promise {
       dueTime: dueTime is DateTime? ? dueTime : this.dueTime,
       createdAt: createdAt ?? this.createdAt,
       status: status ?? this.status,
+      creatorConfirmed: creatorConfirmed ?? this.creatorConfirmed,
+      recipientConfirmed: recipientConfirmed ?? this.recipientConfirmed,
     );
   }
 }

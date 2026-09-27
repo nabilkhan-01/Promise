@@ -14,3 +14,9 @@ greeting:
 promise:
   - createPromise:
   - getPromises:
+  - getPromise:
+  - getActivities:
+  - addActivity:
+  - confirmPromiseCompletion:
+  - requestChanges:
+  - updatePromiseStatus:

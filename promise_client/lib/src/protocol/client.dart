@@ -15,6 +15,8 @@ import 'package:http/http.dart' as _i85jenna;
 import 'package:promise_client/src/protocol/greetings/greeting.dart'
     as _izk3ljs4;
 import 'package:promise_client/src/protocol/promises/promise.dart' as _izrd4uei;
+import 'package:promise_client/src/protocol/promises/promise_activity.dart'
+    as _irwpjxuh;
 import 'package:serverpod_auth_core_client/serverpod_auth_core_client.dart'
     as _iacc;
 import 'package:serverpod_auth_idp_client/serverpod_auth_idp_client.dart'
@@ -272,7 +274,7 @@ class EndpointPromise extends _isc.EndpointRef {
   @override
   String get name => 'promise';
 
-  /// Creates a new promise after validating input and setting server-side metadata.
+  /// Creates a new promise and records its initial "created" activity.
   _ida.Future<_izrd4uei.Promise> createPromise(_izrd4uei.Promise promise) =>
       caller.callServerEndpoint<_izrd4uei.Promise>(
         'promise',
@@ -287,6 +289,82 @@ class EndpointPromise extends _isc.EndpointRef {
         'getPromises',
         {},
       );
+
+  /// Retrieves a single promise by ID.
+  _ida.Future<_izrd4uei.Promise?> getPromise(int id) =>
+      caller.callServerEndpoint<_izrd4uei.Promise?>(
+        'promise',
+        'getPromise',
+        {'id': id},
+      );
+
+  /// Retrieves activities for a promise ordered oldest to newest.
+  _ida.Future<List<_irwpjxuh.PromiseActivity>> getActivities(int promiseId) =>
+      caller.callServerEndpoint<List<_irwpjxuh.PromiseActivity>>(
+        'promise',
+        'getActivities',
+        {'promiseId': promiseId},
+      );
+
+  /// Adds a new activity update for a promise. Does NOT alter overall promise status.
+  _ida.Future<_irwpjxuh.PromiseActivity> addActivity(
+    int promiseId,
+    String type,
+    String message, {
+    String? activityStatus,
+  }) => caller.callServerEndpoint<_irwpjxuh.PromiseActivity>(
+    'promise',
+    'addActivity',
+    {
+      'promiseId': promiseId,
+      'type': type,
+      'message': message,
+      'activityStatus': activityStatus,
+    },
+  );
+
+  /// Confirms promise completion for a specific role ('creator' or 'recipient').
+  /// Both parties must confirm before the promise status becomes 'completed'.
+  _ida.Future<_izrd4uei.Promise> confirmPromiseCompletion(
+    int promiseId,
+    String role,
+  ) => caller.callServerEndpoint<_izrd4uei.Promise>(
+    'promise',
+    'confirmPromiseCompletion',
+    {
+      'promiseId': promiseId,
+      'role': role,
+    },
+  );
+
+  /// Requests changes for a promise, resetting confirmations and setting status to 'in_progress'.
+  _ida.Future<_izrd4uei.Promise> requestChanges(
+    int promiseId,
+    String role,
+    String reason,
+  ) => caller.callServerEndpoint<_izrd4uei.Promise>(
+    'promise',
+    'requestChanges',
+    {
+      'promiseId': promiseId,
+      'role': role,
+      'reason': reason,
+    },
+  );
+
+  /// Explicitly updates the overall status of a promise.
+  /// Enforces that 'completed' CANNOT be set manually unless both parties have confirmed.
+  _ida.Future<_izrd4uei.Promise> updatePromiseStatus(
+    int promiseId,
+    String newStatus,
+  ) => caller.callServerEndpoint<_izrd4uei.Promise>(
+    'promise',
+    'updatePromiseStatus',
+    {
+      'promiseId': promiseId,
+      'newStatus': newStatus,
+    },
+  );
 }
 
 class Modules {
