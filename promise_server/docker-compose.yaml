@@ -1,0 +1,44 @@
+services:
+  # Development services
+  postgres:
+    image: ghcr.io/serverpod/postgres:16
+    ports:
+      - "8090:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: promise
+      POSTGRES_PASSWORD: "KL_i-PHh_aOLCsQ-SKVGsz3Uw_V2XkrM"
+    volumes:
+      - promise_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:6.2.6
+    ports:
+      - "8091:6379"
+    command: redis-server --requirepass "T9eOa4Ss5E3d8GURmv7ZKv-i7wGfdxEn"
+    environment:
+      - REDIS_REPLICATION_MODE=master
+
+  # Test services
+  postgres_test:
+    image: ghcr.io/serverpod/postgres:16
+    ports:
+      - "9090:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: promise_test
+      POSTGRES_PASSWORD: "iUUNDUL_6hRfng0XGPjgXcd7ZaJKb8uu"
+    volumes:
+      - promise_test_data:/var/lib/postgresql/data
+
+  redis_test:
+    image: redis:6.2.6
+    ports:
+      - "9091:6379"
+    command: redis-server --requirepass "soUrgTKuYd2CftaqhkHFlluyJbV90OdT"
+    environment:
+      - REDIS_REPLICATION_MODE=master
+
+volumes:
+  promise_data:
+  promise_test_data:
