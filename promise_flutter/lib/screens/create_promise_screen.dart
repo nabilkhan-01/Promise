@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:promise_client/promise_client.dart';
+import '../client.dart';
 
 class CreatePromiseScreen extends StatefulWidget {
   const CreatePromiseScreen({super.key});
@@ -17,6 +19,7 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   String? _dateError;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -48,6 +51,8 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
   }
 
   Future<void> _pickDate() async {
+    if (_isLoading) return;
+
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
@@ -67,6 +72,8 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
   }
 
   Future<void> _pickTime() async {
+    if (_isLoading) return;
+
     final picked = await showTimePicker(
       context: context,
       initialTime: _selectedTime ?? TimeOfDay.now(),
@@ -80,12 +87,16 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
   }
 
   void _clearTime() {
+    if (_isLoading) return;
+
     setState(() {
       _selectedTime = null;
     });
   }
 
-  void _createPromise() {
+  Future<void> _createPromise() async {
+    if (_isLoading) return;
+
     final isFormValid = _formKey.currentState!.validate();
     final isDateValid = _selectedDate != null;
 
@@ -99,9 +110,63 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
       return;
     }
 
-    // For now, simply return to the previous screen.
-    // We will connect this to Serverpod in the next stage.
-    Navigator.pop(context);
+    setState(() {
+      _isLoading = true;
+    });
+
+    final dueDateUtc = DateTime(
+      _selectedDate!.year,
+      _selectedDate!.month,
+      _selectedDate!.day,
+    ).toUtc();
+
+    DateTime? dueTimeUtc;
+    if (_selectedTime != null) {
+      dueTimeUtc = DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        _selectedTime!.hour,
+        _selectedTime!.minute,
+      ).toUtc();
+    }
+
+    final promiseToCreate = Promise(
+      title: _titleController.text.trim(),
+      promisedTo: _personController.text.trim(),
+      description: _descriptionController.text.trim().isEmpty
+          ? null
+          : _descriptionController.text.trim(),
+      dueDate: dueDateUtc,
+      dueTime: dueTimeUtc,
+      createdAt: DateTime.now().toUtc(),
+      status: 'pending',
+    );
+
+    try {
+      final createdPromise = await client.promise.createPromise(
+        promiseToCreate,
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context, createdPromise);
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Could not save promise. Please check your connection and try again.',
+          ),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
   }
 
   @override
@@ -142,6 +207,7 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
               // Promise Title
               TextFormField(
                 controller: _titleController,
+                enabled: !_isLoading,
                 textCapitalization: TextCapitalization.sentences,
                 textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
@@ -162,6 +228,7 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
               // Promised To
               TextFormField(
                 controller: _personController,
+                enabled: !_isLoading,
                 textCapitalization: TextCapitalization.words,
                 textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
@@ -182,6 +249,7 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
               // Description (Optional)
               TextFormField(
                 controller: _descriptionController,
+                enabled: !_isLoading,
                 textCapitalization: TextCapitalization.sentences,
                 maxLines: 3,
                 decoration: const InputDecoration(
@@ -213,7 +281,7 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         OutlinedButton.icon(
-                          onPressed: _pickDate,
+                          onPressed: _isLoading ? null : _pickDate,
                           icon: const Icon(Icons.calendar_today_outlined),
                           label: Text(
                             _selectedDate == null
@@ -249,7 +317,7 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
                   Expanded(
                     child: _selectedTime == null
                         ? OutlinedButton.icon(
-                            onPressed: _pickTime,
+                            onPressed: _isLoading ? null : _pickTime,
                             icon: const Icon(Icons.access_time_outlined),
                             label: const Text(
                               'Due time',
@@ -260,7 +328,7 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
                             ),
                           )
                         : OutlinedButton.icon(
-                            onPressed: _pickTime,
+                            onPressed: _isLoading ? null : _pickTime,
                             icon: const Icon(Icons.access_time_outlined),
                             label: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -293,11 +361,20 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
 
               // Create Promise Button
               FilledButton.icon(
-                onPressed: _createPromise,
-                icon: const Icon(Icons.handshake_outlined),
-                label: const Text(
-                  'Create Promise',
-                  style: TextStyle(
+                onPressed: _isLoading ? null : _createPromise,
+                icon: _isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.handshake_outlined),
+                label: Text(
+                  _isLoading ? 'Saving Promise...' : 'Create Promise',
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),

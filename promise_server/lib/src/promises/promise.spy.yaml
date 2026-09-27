@@ -1,0 +1,10 @@
+class: Promise
+table: promise
+fields:
+  title: String
+  promisedTo: String
+  description: String?
+  dueDate: DateTime
+  dueTime: DateTime?
+  createdAt: DateTime
+  status: String

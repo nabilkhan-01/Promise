@@ -10,6 +10,8 @@
 // ignore_for_file: invalid_use_of_internal_member
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
+import 'package:promise_server/src/generated/promises/promise.dart'
+    as _ipgb4ryh;
 import 'package:serverpod/serverpod.dart' as _is;
 import 'package:serverpod_auth_core_server/serverpod_auth_core_server.dart'
     as _iacs;
@@ -18,6 +20,7 @@ import 'package:serverpod_auth_idp_server/serverpod_auth_idp_server.dart'
 import '../auth/email_idp_endpoint.dart' as _iuc1hd5t;
 import '../auth/jwt_refresh_endpoint.dart' as _inwq3ztq;
 import '../greetings/greeting_endpoint.dart' as _il624ik7;
+import '../promises/promise_endpoint.dart' as _itrz4nk3;
 
 class Endpoints extends _is.EndpointDispatch {
   @override
@@ -39,6 +42,12 @@ class Endpoints extends _is.EndpointDispatch {
         ..initialize(
           server,
           'greeting',
+          null,
+        ),
+      'promise': _itrz4nk3.PromiseEndpoint()
+        ..initialize(
+          server,
+          'promise',
           null,
         ),
     };
@@ -270,6 +279,41 @@ class Endpoints extends _is.EndpointDispatch {
                     session,
                     params['name'],
                   ),
+        ),
+      },
+    );
+    connectors['promise'] = _is.EndpointConnector(
+      name: 'promise',
+      endpoint: endpoints['promise']!,
+      methodConnectors: {
+        'createPromise': _is.MethodConnector(
+          name: 'createPromise',
+          params: {
+            'promise': _is.ParameterDescription(
+              name: 'promise',
+              type: _is.getType<_ipgb4ryh.Promise>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['promise'] as _itrz4nk3.PromiseEndpoint)
+                  .createPromise(
+                    session,
+                    params['promise'],
+                  ),
+        ),
+        'getPromises': _is.MethodConnector(
+          name: 'getPromises',
+          params: {},
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['promise'] as _itrz4nk3.PromiseEndpoint)
+                  .getPromises(session),
         ),
       },
     );

@@ -14,6 +14,7 @@ import 'dart:async' as _ida;
 import 'package:http/http.dart' as _i85jenna;
 import 'package:promise_client/src/protocol/greetings/greeting.dart'
     as _izk3ljs4;
+import 'package:promise_client/src/protocol/promises/promise.dart' as _izrd4uei;
 import 'package:serverpod_auth_core_client/serverpod_auth_core_client.dart'
     as _iacc;
 import 'package:serverpod_auth_idp_client/serverpod_auth_idp_client.dart'
@@ -264,6 +265,30 @@ class EndpointGreeting extends _isc.EndpointRef {
       );
 }
 
+/// {@category Endpoint}
+class EndpointPromise extends _isc.EndpointRef {
+  EndpointPromise(_isc.EndpointCaller caller) : super(caller);
+
+  @override
+  String get name => 'promise';
+
+  /// Creates a new promise after validating input and setting server-side metadata.
+  _ida.Future<_izrd4uei.Promise> createPromise(_izrd4uei.Promise promise) =>
+      caller.callServerEndpoint<_izrd4uei.Promise>(
+        'promise',
+        'createPromise',
+        {'promise': promise},
+      );
+
+  /// Retrieves all promises ordered newest-created first.
+  _ida.Future<List<_izrd4uei.Promise>> getPromises() =>
+      caller.callServerEndpoint<List<_izrd4uei.Promise>>(
+        'promise',
+        'getPromises',
+        {},
+      );
+}
+
 class Modules {
   Modules(Client client) {
     serverpod_auth_idp = _iaic.Caller(client);
@@ -305,6 +330,7 @@ class Client extends _isc.ServerpodClientShared {
     emailIdp = EndpointEmailIdp(this);
     jwtRefresh = EndpointJwtRefresh(this);
     greeting = EndpointGreeting(this);
+    promise = EndpointPromise(this);
     modules = Modules(this);
   }
 
@@ -314,6 +340,8 @@ class Client extends _isc.ServerpodClientShared {
 
   late final EndpointGreeting greeting;
 
+  late final EndpointPromise promise;
+
   late final Modules modules;
 
   @override
@@ -321,6 +349,7 @@ class Client extends _isc.ServerpodClientShared {
     'emailIdp': emailIdp,
     'jwtRefresh': jwtRefresh,
     'greeting': greeting,
+    'promise': promise,
   };
 
   @override
