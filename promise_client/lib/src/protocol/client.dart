@@ -306,7 +306,7 @@ class EndpointPromise extends _isc.EndpointRef {
         {'promiseId': promiseId},
       );
 
-  /// Adds a new activity update for a promise. Does NOT alter overall promise status.
+  /// Adds a new activity update for a promise. Rejects updates if promise is already completed.
   _ida.Future<_irwpjxuh.PromiseActivity> addActivity(
     int promiseId,
     String type,
@@ -338,6 +338,7 @@ class EndpointPromise extends _isc.EndpointRef {
   );
 
   /// Requests changes for a promise, resetting confirmations and setting status to 'in_progress'.
+  /// Rejects requests if promise is already completed.
   _ida.Future<_izrd4uei.Promise> requestChanges(
     int promiseId,
     String role,
@@ -353,7 +354,8 @@ class EndpointPromise extends _isc.EndpointRef {
   );
 
   /// Explicitly updates the overall status of a promise.
-  /// Enforces that 'completed' CANNOT be set manually unless both parties have confirmed.
+  /// Enforces that 'completed' CANNOT be set manually unless both parties have confirmed,
+  /// and that completed promises cannot be changed.
   _ida.Future<_izrd4uei.Promise> updatePromiseStatus(
     int promiseId,
     String newStatus,

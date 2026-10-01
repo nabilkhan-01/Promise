@@ -75,7 +75,7 @@ class PromiseEndpoint extends Endpoint {
     );
   }
 
-  /// Adds a new activity update for a promise. Does NOT alter overall promise status.
+  /// Adds a new activity update for a promise. Rejects updates if promise is already completed.
   Future<PromiseActivity> addActivity(
     Session session,
     int promiseId,
@@ -91,6 +91,10 @@ class PromiseEndpoint extends Endpoint {
     final promise = await Promise.db.findById(session, promiseId);
     if (promise == null) {
       throw ArgumentError('Promise with ID $promiseId not found.');
+    }
+
+    if (promise.status == 'completed') {
+      throw ArgumentError('Completed promises cannot receive new updates.');
     }
 
     final activity = PromiseActivity(
@@ -123,11 +127,10 @@ class PromiseEndpoint extends Endpoint {
       throw ArgumentError('Promise with ID $promiseId not found.');
     }
 
-    // Safe/idempotent check: if role is already confirmed, return without duplicate activities
-    if (cleanRole == 'creator' && existing.creatorConfirmed) {
-      return existing;
-    }
-    if (cleanRole == 'recipient' && existing.recipientConfirmed) {
+    // Safe/idempotent check: if already completed or role is confirmed, return without duplicate activities
+    if (existing.status == 'completed' ||
+        (cleanRole == 'creator' && existing.creatorConfirmed) ||
+        (cleanRole == 'recipient' && existing.recipientConfirmed)) {
       return existing;
     }
 
@@ -182,6 +185,7 @@ class PromiseEndpoint extends Endpoint {
   }
 
   /// Requests changes for a promise, resetting confirmations and setting status to 'in_progress'.
+  /// Rejects requests if promise is already completed.
   Future<Promise> requestChanges(
     Session session,
     int promiseId,
@@ -189,6 +193,10 @@ class PromiseEndpoint extends Endpoint {
     String reason,
   ) async {
     final cleanRole = role.trim().toLowerCase();
+    if (cleanRole != 'creator' && cleanRole != 'recipient') {
+      throw ArgumentError('Role must be either "creator" or "recipient".');
+    }
+
     final cleanReason = reason.trim();
     if (cleanReason.isEmpty) {
       throw ArgumentError('Reason for requesting changes cannot be empty.');
@@ -197,6 +205,10 @@ class PromiseEndpoint extends Endpoint {
     final existing = await Promise.db.findById(session, promiseId);
     if (existing == null) {
       throw ArgumentError('Promise with ID $promiseId not found.');
+    }
+
+    if (existing.status == 'completed') {
+      throw ArgumentError('Completed promises cannot be changed.');
     }
 
     final roleLabel = cleanRole == 'creator' ? 'Creator' : 'Recipient';
@@ -233,7 +245,8 @@ class PromiseEndpoint extends Endpoint {
   }
 
   /// Explicitly updates the overall status of a promise.
-  /// Enforces that 'completed' CANNOT be set manually unless both parties have confirmed.
+  /// Enforces that 'completed' CANNOT be set manually unless both parties have confirmed,
+  /// and that completed promises cannot be changed.
   Future<Promise> updatePromiseStatus(
     Session session,
     int promiseId,
@@ -256,6 +269,10 @@ class PromiseEndpoint extends Endpoint {
 
       if (promise.status == cleanStatus) {
         return promise;
+      }
+
+      if (promise.status == 'completed') {
+        throw ArgumentError('Completed promises cannot be changed.');
       }
 
       if (cleanStatus == 'completed') {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:promise_client/promise_client.dart';
 import '../client.dart';
 import 'add_update_screen.dart';
+import 'request_changes_screen.dart';
 
 class PromiseDetailsScreen extends StatefulWidget {
   final Promise promise;
@@ -72,7 +73,7 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
   }
 
   Future<void> _confirmCompletion(String role) async {
-    if (_isUpdatingStatus) return;
+    if (_isUpdatingStatus || _currentPromise.status == 'completed') return;
 
     setState(() {
       _isUpdatingStatus = true;
@@ -112,7 +113,11 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
   }
 
   Future<void> _changeOverallStatus(String newStatus) async {
-    if (_isUpdatingStatus || newStatus == _currentPromise.status) return;
+    if (_isUpdatingStatus ||
+        _currentPromise.status == 'completed' ||
+        newStatus == _currentPromise.status) {
+      return;
+    }
 
     setState(() {
       _isUpdatingStatus = true;
@@ -251,6 +256,8 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
   }
 
   Future<void> _openAddUpdateScreen() async {
+    if (_currentPromise.status == 'completed') return;
+
     final didUpdate = await Navigator.push<bool?>(
       context,
       MaterialPageRoute(
@@ -266,10 +273,35 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
     }
   }
 
+  Future<void> _openRequestChangesScreen() async {
+    if (_currentPromise.status == 'completed') return;
+
+    final didUpdate = await Navigator.push<bool?>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RequestChangesScreen(
+          promiseId: _currentPromise.id!,
+        ),
+      ),
+    );
+
+    if (didUpdate == true && mounted) {
+      _hasChanges = true;
+      _loadData(showLoading: false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Changes requested successfully'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isCompleted = _currentPromise.status == 'completed';
     final statusColor = _getStatusColor(_currentPromise.status, colorScheme);
     final isBothConfirmed =
         _currentPromise.creatorConfirmed && _currentPromise.recipientConfirmed;
@@ -483,7 +515,7 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
                             ),
                           ],
                           selected: {_currentPromise.status},
-                          onSelectionChanged: _isUpdatingStatus
+                          onSelectionChanged: (_isUpdatingStatus || isCompleted)
                               ? null
                               : (newSelection) {
                                   if (newSelection.isNotEmpty) {
@@ -495,6 +527,39 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
                                 },
                         ),
                       ),
+
+                      if (isCompleted) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.green.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.check_circle_outline,
+                                color: Colors.green,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Promise Completed — This promise is final and no further changes can be made.',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: Colors.green.shade800,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -568,7 +633,7 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
                           ),
                           if (!_currentPromise.creatorConfirmed)
                             FilledButton.tonal(
-                              onPressed: _isUpdatingStatus
+                              onPressed: (_isUpdatingStatus || isCompleted)
                                   ? null
                                   : () => _confirmCompletion('creator'),
                               child: const Text('Confirm (Creator)'),
@@ -622,7 +687,7 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
                           ),
                           if (!_currentPromise.recipientConfirmed)
                             FilledButton.tonal(
-                              onPressed: _isUpdatingStatus
+                              onPressed: (_isUpdatingStatus || isCompleted)
                                   ? null
                                   : () => _confirmCompletion('recipient'),
                               child: const Text('Confirm (Recipient)'),
@@ -634,6 +699,27 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
                             ),
                         ],
                       ),
+
+                      if (!isCompleted) ...[
+                        const SizedBox(height: 16),
+                        const Divider(height: 1),
+                        const SizedBox(height: 16),
+
+                        // Request Changes Action Button
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: _isUpdatingStatus
+                                ? null
+                                : _openRequestChangesScreen,
+                            icon: const Icon(
+                              Icons.assignment_return_outlined,
+                              size: 18,
+                            ),
+                            label: const Text('Request Changes'),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -651,11 +737,12 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  OutlinedButton.icon(
-                    onPressed: _openAddUpdateScreen,
-                    icon: const Icon(Icons.add_comment_outlined, size: 18),
-                    label: const Text('Add Update'),
-                  ),
+                  if (!isCompleted)
+                    OutlinedButton.icon(
+                      onPressed: _openAddUpdateScreen,
+                      icon: const Icon(Icons.add_comment_outlined, size: 18),
+                      label: const Text('Add Update'),
+                    ),
                 ],
               ),
 
