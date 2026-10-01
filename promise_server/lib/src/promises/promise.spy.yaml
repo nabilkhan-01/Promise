@@ -10,3 +10,5 @@ fields:
   status: String
   creatorConfirmed: bool, default=false
   recipientConfirmed: bool, default=false
+  creatorUserId: String?
+  recipientUserId: String?

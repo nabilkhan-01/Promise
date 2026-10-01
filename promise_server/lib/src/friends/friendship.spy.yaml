@@ -1,0 +1,8 @@
+class: Friendship
+table: friendship
+fields:
+  senderUserId: String
+  receiverUserId: String
+  status: String
+  createdAt: DateTime
+  updatedAt: DateTime?

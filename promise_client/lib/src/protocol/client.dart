@@ -12,6 +12,10 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _ida;
 import 'package:http/http.dart' as _i85jenna;
+import 'package:promise_client/src/protocol/friends/friendship.dart'
+    as _i06n1i47;
+import 'package:promise_client/src/protocol/friends/user_search_profile.dart'
+    as _ihsmdl90;
 import 'package:promise_client/src/protocol/greetings/greeting.dart'
     as _izk3ljs4;
 import 'package:promise_client/src/protocol/promises/promise.dart' as _izrd4uei;
@@ -249,6 +253,70 @@ class EndpointJwtRefresh extends _iacc.EndpointRefreshJwtTokens {
       );
 }
 
+/// {@category Endpoint}
+class EndpointFriend extends _isc.EndpointRef {
+  EndpointFriend(_isc.EndpointCaller caller) : super(caller);
+
+  @override
+  String get name => 'friend';
+
+  /// Searches for registered users by email or username, including friendship status with current user.
+  _ida.Future<List<_ihsmdl90.UserSearchProfile>> searchUsers(String query) =>
+      caller.callServerEndpoint<List<_ihsmdl90.UserSearchProfile>>(
+        'friend',
+        'searchUsers',
+        {'query': query},
+      );
+
+  /// Sends a friend request to a target user ID.
+  _ida.Future<_i06n1i47.Friendship> sendFriendRequest(String receiverUserId) =>
+      caller.callServerEndpoint<_i06n1i47.Friendship>(
+        'friend',
+        'sendFriendRequest',
+        {'receiverUserId': receiverUserId},
+      );
+
+  /// Retrieves pending friend requests sent TO the current authenticated user.
+  _ida.Future<List<_ihsmdl90.UserSearchProfile>> getPendingFriendRequests() =>
+      caller.callServerEndpoint<List<_ihsmdl90.UserSearchProfile>>(
+        'friend',
+        'getPendingFriendRequests',
+        {},
+      );
+
+  /// Accepts an incoming friend request.
+  _ida.Future<_i06n1i47.Friendship> acceptFriendRequest(int friendshipId) =>
+      caller.callServerEndpoint<_i06n1i47.Friendship>(
+        'friend',
+        'acceptFriendRequest',
+        {'friendshipId': friendshipId},
+      );
+
+  /// Rejects an incoming friend request.
+  _ida.Future<_i06n1i47.Friendship> rejectFriendRequest(int friendshipId) =>
+      caller.callServerEndpoint<_i06n1i47.Friendship>(
+        'friend',
+        'rejectFriendRequest',
+        {'friendshipId': friendshipId},
+      );
+
+  /// Retrieves list of accepted friends for current authenticated user.
+  _ida.Future<List<_ihsmdl90.UserSearchProfile>> getFriends() =>
+      caller.callServerEndpoint<List<_ihsmdl90.UserSearchProfile>>(
+        'friend',
+        'getFriends',
+        {},
+      );
+
+  /// Removes an accepted friend relationship.
+  _ida.Future<void> removeFriend(String friendUserId) =>
+      caller.callServerEndpoint<void>(
+        'friend',
+        'removeFriend',
+        {'friendUserId': friendUserId},
+      );
+}
+
 /// This is an example endpoint that returns a greeting message through
 /// its [hello] method.
 /// {@category Endpoint}
@@ -274,7 +342,7 @@ class EndpointPromise extends _isc.EndpointRef {
   @override
   String get name => 'promise';
 
-  /// Creates a new promise and records its initial "created" activity.
+  /// Creates a new promise for an accepted friend.
   _ida.Future<_izrd4uei.Promise> createPromise(_izrd4uei.Promise promise) =>
       caller.callServerEndpoint<_izrd4uei.Promise>(
         'promise',
@@ -282,7 +350,7 @@ class EndpointPromise extends _isc.EndpointRef {
         {'promise': promise},
       );
 
-  /// Retrieves all promises ordered newest-created first.
+  /// Retrieves promises relevant to the current authenticated user.
   _ida.Future<List<_izrd4uei.Promise>> getPromises() =>
       caller.callServerEndpoint<List<_izrd4uei.Promise>>(
         'promise',
@@ -290,7 +358,7 @@ class EndpointPromise extends _isc.EndpointRef {
         {},
       );
 
-  /// Retrieves a single promise by ID.
+  /// Retrieves a single promise by ID after authorizing participant access.
   _ida.Future<_izrd4uei.Promise?> getPromise(int id) =>
       caller.callServerEndpoint<_izrd4uei.Promise?>(
         'promise',
@@ -298,7 +366,7 @@ class EndpointPromise extends _isc.EndpointRef {
         {'id': id},
       );
 
-  /// Retrieves activities for a promise ordered oldest to newest.
+  /// Retrieves activities for a promise after authorizing participant access.
   _ida.Future<List<_irwpjxuh.PromiseActivity>> getActivities(int promiseId) =>
       caller.callServerEndpoint<List<_irwpjxuh.PromiseActivity>>(
         'promise',
@@ -306,7 +374,7 @@ class EndpointPromise extends _isc.EndpointRef {
         {'promiseId': promiseId},
       );
 
-  /// Adds a new activity update for a promise. Rejects updates if promise is already completed.
+  /// Adds a new activity update for a promise. Does NOT alter overall promise status.
   _ida.Future<_irwpjxuh.PromiseActivity> addActivity(
     int promiseId,
     String type,
@@ -323,8 +391,7 @@ class EndpointPromise extends _isc.EndpointRef {
     },
   );
 
-  /// Confirms promise completion for a specific role ('creator' or 'recipient').
-  /// Both parties must confirm before the promise status becomes 'completed'.
+  /// Confirms promise completion. Role is derived from authenticated user identity.
   _ida.Future<_izrd4uei.Promise> confirmPromiseCompletion(
     int promiseId,
     String role,
@@ -337,8 +404,7 @@ class EndpointPromise extends _isc.EndpointRef {
     },
   );
 
-  /// Requests changes for a promise, resetting confirmations and setting status to 'in_progress'.
-  /// Rejects requests if promise is already completed.
+  /// Requests changes for a promise. Role is derived from authenticated user identity.
   _ida.Future<_izrd4uei.Promise> requestChanges(
     int promiseId,
     String role,
@@ -354,8 +420,6 @@ class EndpointPromise extends _isc.EndpointRef {
   );
 
   /// Explicitly updates the overall status of a promise.
-  /// Enforces that 'completed' CANNOT be set manually unless both parties have confirmed,
-  /// and that completed promises cannot be changed.
   _ida.Future<_izrd4uei.Promise> updatePromiseStatus(
     int promiseId,
     String newStatus,
@@ -409,6 +473,7 @@ class Client extends _isc.ServerpodClientShared {
        ) {
     emailIdp = EndpointEmailIdp(this);
     jwtRefresh = EndpointJwtRefresh(this);
+    friend = EndpointFriend(this);
     greeting = EndpointGreeting(this);
     promise = EndpointPromise(this);
     modules = Modules(this);
@@ -417,6 +482,8 @@ class Client extends _isc.ServerpodClientShared {
   late final EndpointEmailIdp emailIdp;
 
   late final EndpointJwtRefresh jwtRefresh;
+
+  late final EndpointFriend friend;
 
   late final EndpointGreeting greeting;
 
@@ -428,6 +495,7 @@ class Client extends _isc.ServerpodClientShared {
   Map<String, _isc.EndpointRef> get endpointRefLookup => {
     'emailIdp': emailIdp,
     'jwtRefresh': jwtRefresh,
+    'friend': friend,
     'greeting': greeting,
     'promise': promise,
   };

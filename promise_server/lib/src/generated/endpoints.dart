@@ -19,6 +19,7 @@ import 'package:serverpod_auth_idp_server/serverpod_auth_idp_server.dart'
     as _iais;
 import '../auth/email_idp_endpoint.dart' as _iuc1hd5t;
 import '../auth/jwt_refresh_endpoint.dart' as _inwq3ztq;
+import '../friends/friend_endpoint.dart' as _ib9qa24p;
 import '../greetings/greeting_endpoint.dart' as _il624ik7;
 import '../promises/promise_endpoint.dart' as _itrz4nk3;
 
@@ -36,6 +37,12 @@ class Endpoints extends _is.EndpointDispatch {
         ..initialize(
           server,
           'jwtRefresh',
+          null,
+        ),
+      'friend': _ib9qa24p.FriendEndpoint()
+        ..initialize(
+          server,
+          'friend',
           null,
         ),
       'greeting': _il624ik7.GreetingEndpoint()
@@ -254,6 +261,127 @@ class Endpoints extends _is.EndpointDispatch {
                         session,
                         refreshToken: params['refreshToken'],
                       ),
+        ),
+      },
+    );
+    connectors['friend'] = _is.EndpointConnector(
+      name: 'friend',
+      endpoint: endpoints['friend']!,
+      methodConnectors: {
+        'searchUsers': _is.MethodConnector(
+          name: 'searchUsers',
+          params: {
+            'query': _is.ParameterDescription(
+              name: 'query',
+              type: _is.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['friend'] as _ib9qa24p.FriendEndpoint).searchUsers(
+                    session,
+                    params['query'],
+                  ),
+        ),
+        'sendFriendRequest': _is.MethodConnector(
+          name: 'sendFriendRequest',
+          params: {
+            'receiverUserId': _is.ParameterDescription(
+              name: 'receiverUserId',
+              type: _is.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['friend'] as _ib9qa24p.FriendEndpoint)
+                  .sendFriendRequest(
+                    session,
+                    params['receiverUserId'],
+                  ),
+        ),
+        'getPendingFriendRequests': _is.MethodConnector(
+          name: 'getPendingFriendRequests',
+          params: {},
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['friend'] as _ib9qa24p.FriendEndpoint)
+                  .getPendingFriendRequests(session),
+        ),
+        'acceptFriendRequest': _is.MethodConnector(
+          name: 'acceptFriendRequest',
+          params: {
+            'friendshipId': _is.ParameterDescription(
+              name: 'friendshipId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['friend'] as _ib9qa24p.FriendEndpoint)
+                  .acceptFriendRequest(
+                    session,
+                    params['friendshipId'],
+                  ),
+        ),
+        'rejectFriendRequest': _is.MethodConnector(
+          name: 'rejectFriendRequest',
+          params: {
+            'friendshipId': _is.ParameterDescription(
+              name: 'friendshipId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['friend'] as _ib9qa24p.FriendEndpoint)
+                  .rejectFriendRequest(
+                    session,
+                    params['friendshipId'],
+                  ),
+        ),
+        'getFriends': _is.MethodConnector(
+          name: 'getFriends',
+          params: {},
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['friend'] as _ib9qa24p.FriendEndpoint)
+                  .getFriends(session),
+        ),
+        'removeFriend': _is.MethodConnector(
+          name: 'removeFriend',
+          params: {
+            'friendUserId': _is.ParameterDescription(
+              name: 'friendUserId',
+              type: _is.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['friend'] as _ib9qa24p.FriendEndpoint)
+                  .removeFriend(
+                    session,
+                    params['friendUserId'],
+                  ),
         ),
       },
     );

@@ -4,10 +4,17 @@ Promise helps people turn everyday agreements into clear, trackable, and documen
 
 Whether delivering a project, submitting an assignment, completing a milestone, or confirming completion between two parties, Promise provides a reliable way to keep track of everyday commitments from creation to final two-sided confirmation.
 
+Promise is built around a simple rule: **a commitment is not officially complete until both sides confirm it.**
+
 ## Features
 
 ### Currently Implemented (MVP)
-- **Create Promise:** Log new commitments with title, recipient, optional description, due date, and optional due time.
+- **Authentication:** Serverpod Auth sign-in flow with authenticated sessions and sign-out.
+- **Friends:** Search users, send/accept/reject friend requests, view friends, and remove friends.
+- **Friend-Based Recipients:** Promises can be created only for accepted friends.
+- **Create Promise:** Log new commitments with title, recipient friend, optional description, due date, and optional due time.
+- **Participant Identity:** Creator and recipient user IDs are stored on each Promise and derived/validated by the backend.
+- **Server-Enforced Authorization:** Only Promise participants can view or modify a Promise.
 - **PostgreSQL Persistence:** Full backend persistence through Serverpod ORM and PostgreSQL.
 - **Home Dashboard:** View saved promises as clean Material 3 cards with status indicators and pull-to-refresh.
 - **Promise Details View:** Comprehensive details view showing commitment information, schedule, and activity history.
@@ -16,8 +23,9 @@ Whether delivering a project, submitting an assignment, completing a milestone, 
 - **Overall Promise Status:** Managed status flow supporting `Pending`, `In Progress`, `Awaiting Confirmation`, and `Completed`.
 - **Awaiting Confirmation State:** System-generated status when one party confirms completion while awaiting the second party.
 - **Two-Party Completion Confirmation:** A Promise is officially completed ONLY when both Creator and Recipient confirm completion.
-- **Serverpod Backend Enforcement:** Serverpod endpoint validates that setting `Completed` requires both parties to have confirmed.
-- **Activity Logging:** Automatic transaction logging for promise creation, progress updates, status changes, and two-party confirmations.
+- **Serverpod Backend Enforcement:** Serverpod endpoints enforce participant access, completion rules, and terminal-state rules.
+- **Completed Is Final:** Once both parties confirm, a Promise becomes read-only; updates, Request Changes, confirmations, and status changes are blocked while history remains viewable.
+- **Activity Logging:** Automatic transaction logging for promise creation, progress updates, status changes, confirmation events, and change requests.
 - **Full-Screen Android Navigation:** Dedicated `PromisePreparationScreen` and full-screen `AddUpdateScreen` route architecture for Android lifecycle safety.
 - **Loading & Error States:** User-friendly loading overlays, retries, and network error handling.
 - **Material 3 UI:** Clean Material 3 design system.
@@ -27,19 +35,25 @@ Whether delivering a project, submitting an assignment, completing a milestone, 
 ## How It Works
 
 ```text
-Create Promise
-  └─> Prepare / Load Promise Data
-       └─> Promise Details
-            ├─> Add Progress Updates (Activity Status: Pending / In Progress / Completed)
-            ├─> Change Overall Status (Pending / In Progress)
-            ├─> Creator Confirmation  ──┐
-            └─> Recipient Confirmation ──┴─> Overall Status: Completed (When BOTH confirmed)
+Authenticate
+  └─> Add / Accept Friend
+       └─> Create Promise
+            └─> Prepare / Load Promise Data
+                 └─> Promise Details
+                      ├─> Add Progress Updates (Activity Status: Pending / In Progress / Completed)
+                      ├─> Change Overall Status (Pending / In Progress)
+                      ├─> Creator Confirmation  ──┐
+                      └─> Recipient Confirmation ──┴─> Completed (When BOTH confirmed)
+                                                        └─> Final / Read-only
 ```
 
-1. **Creation:** A user creates a promise with a title, recipient, description, and schedule.
-2. **Progress Updates:** Participants log progress updates (e.g. "Backend completed") with individual activity statuses.
-3. **Completion Confirmation:** Both Creator and Recipient must confirm completion.
-4. **Final Completion:** When the second party confirms, Serverpod automatically updates the overall status to `Completed` and logs the completion event.
+1. **Authentication:** Users sign in through Serverpod Auth.
+2. **Friendship:** A user finds another account and sends a friend request. The recipient accepts it before the relationship can be used for Promise creation.
+3. **Creation:** A user creates a Promise for an accepted friend with a title, description, and schedule.
+4. **Progress Updates:** Participants log progress updates (e.g. "Backend completed") with individual activity statuses.
+5. **Completion Confirmation:** Both Creator and Recipient must confirm completion.
+6. **Final Completion:** When the second party confirms, Serverpod updates the overall status to `Completed` and logs the completion event.
+7. **Final State:** A completed Promise is terminal and read-only, while its full activity history remains available.
 
 ## Tech Stack
 
@@ -73,7 +87,9 @@ PostgreSQL Database
 - **Declarative Models:** Data models are defined in YAML (`.spy.yaml`) files.
 - **Protocol Generation:** Serverpod generates strongly-typed client and server protocol code.
 - **Activity Relation:** `PromiseActivity` links to `Promise` via `promiseId` foreign key.
-- **Backend Rule Enforcement:** Serverpod endpoints validate requests and enforce business rules, including preventing manual `Completed` transitions until both confirmations are present.
+- **Authentication & Authorization:** Serverpod Auth provides the authenticated identity; Promise and Friend endpoints derive the caller identity from the session and enforce participant/relationship rules server-side.
+- **Friendship Model:** Promise creation requires an accepted Friendship between creator and recipient.
+- **Backend Rule Enforcement:** Serverpod endpoints enforce business rules, including two-sided completion and the terminal `Completed` state.
 ## Project Structure
 
 ```text
@@ -147,19 +163,23 @@ flutter pub get
 
 ## Testing & Verification
 
-The following scenarios have been verified on Android Emulator (`emulator-5554`) and Flutter Web:
+The following scenarios have been verified during development:
 
+- **Authentication:** Sign-in and authenticated app state using Serverpod Auth.
+- **Friends Flow:** Search for a user, send a friend request, accept it, and use the accepted friendship to create a Promise.
+- **Participant Authorization:** Creator and recipient access is enforced by the backend.
 - **Promise Creation:** Form validation, native date/time pickers, and Serverpod transaction persistence.
 - **Full-Screen Preparation Route:** Pre-loading details & activities via `PromisePreparationScreen` before opening `PromiseDetailsScreen`.
 - **Full-Screen Add Update Route:** Clean progress update logging via `AddUpdateScreen` with zero modal overlay collisions.
 - **Activity History Timeline:** Chronological timeline rendering with activity status badges (`Pending`, `In Progress`, `Completed`).
-- **Independent Activity Status:** Logging completed activities without affecting overall promise status.
+- **Independent Activity Status:** Logging completed activities without affecting overall Promise status.
 - **Two-Party Completion Confirmation:**
   - Creator confirmation transitions status to `Awaiting Confirmation`.
   - Recipient confirmation transitions status to `Completed`.
   - Same-side repeated confirmation is idempotent (no duplicate events created).
-- **Persistence Verification:** All promises, activities, activity statuses, and confirmation flags persist across app restarts in PostgreSQL.
-- **Cross-Platform Verification:** Verified on Android Emulator and Flutter Web.
+- **Completed-State Finality:** Completed Promises hide mutation actions in the UI and reject further changes at the backend.
+- **Persistence Verification:** Promises, activities, activity statuses, friendships, participant IDs, and confirmation flags persist in PostgreSQL.
+- **Automated Verification:** `serverpod generate`, Dart analysis, and Serverpod tests pass for the current codebase.
 
 ## AI-Assisted Development
 
@@ -174,13 +194,13 @@ All architectural decisions, business rules, and edge-case bug fixes were review
 
 ## Current Limitations
 
-- **Authentication / Identity Verification:** Serverpod Auth is set up in client configuration, but user-identity role binding is not yet enforced; Creator and Recipient confirmation buttons are exposed as explicit controls for MVP testing.
 - **Notifications:** Email reminders and push notifications are not yet implemented.
 - **Payment & Evidence:** Payment tracking and file attachments are planned, not yet implemented.
+- **Friend Search Scale:** The current user-search implementation checks a bounded set of user profiles and is intended for the hackathon MVP rather than a large production user base.
 - **Production Configuration:** Configured for local development (`http://localhost:8080` / `http://10.0.2.2:8080`).
 
 ## Status
 
-Promise is currently a full-stack MVP/hackathon-stage application. Core promise creation, PostgreSQL persistence, activity history tracking, status management, and two-party completion workflows are fully implemented and verified.
+Promise is currently a full-stack MVP/hackathon-stage application. Authentication, friend-based Promise creation, PostgreSQL persistence, activity history tracking, status management, participant authorization, and two-party completion workflows are implemented and verified for the current development build.
 
 Repository: [https://github.com/nabilkhan-01/Promise](https://github.com/nabilkhan-01/Promise)

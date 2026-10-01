@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:promise_client/promise_client.dart';
+import 'package:serverpod_auth_idp_flutter/serverpod_auth_idp_flutter.dart';
 import '../client.dart';
 import 'add_update_screen.dart';
 import 'request_changes_screen.dart';
@@ -305,6 +306,14 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
     final statusColor = _getStatusColor(_currentPromise.status, colorScheme);
     final isBothConfirmed =
         _currentPromise.creatorConfirmed && _currentPromise.recipientConfirmed;
+
+    final currentAuthUserId = client.auth.authInfo?.authUserId.toString();
+    final isUserCreator =
+        _currentPromise.creatorUserId == null ||
+        _currentPromise.creatorUserId == currentAuthUserId;
+    final isUserRecipient =
+        _currentPromise.recipientUserId == null ||
+        _currentPromise.recipientUserId == currentAuthUserId;
 
     return PopScope(
       canPop: false,
@@ -633,7 +642,10 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
                           ),
                           if (!_currentPromise.creatorConfirmed)
                             FilledButton.tonal(
-                              onPressed: (_isUpdatingStatus || isCompleted)
+                              onPressed:
+                                  (_isUpdatingStatus ||
+                                      isCompleted ||
+                                      !isUserCreator)
                                   ? null
                                   : () => _confirmCompletion('creator'),
                               child: const Text('Confirm (Creator)'),
@@ -687,7 +699,10 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
                           ),
                           if (!_currentPromise.recipientConfirmed)
                             FilledButton.tonal(
-                              onPressed: (_isUpdatingStatus || isCompleted)
+                              onPressed:
+                                  (_isUpdatingStatus ||
+                                      isCompleted ||
+                                      !isUserRecipient)
                                   ? null
                                   : () => _confirmCompletion('recipient'),
                               child: const Text('Confirm (Recipient)'),

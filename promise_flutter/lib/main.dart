@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:promise_client/promise_client.dart';
+import 'package:serverpod_auth_idp_flutter/serverpod_auth_idp_flutter.dart';
 import 'client.dart';
 import 'screens/create_promise_screen.dart';
+import 'screens/friends_screen.dart';
 import 'screens/promise_preparation_screen.dart';
+import 'screens/sign_in_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,7 +38,15 @@ class PromiseApp extends StatelessWidget {
         useMaterial3: true,
       ),
       themeMode: ThemeMode.system,
-      home: const PromiseHomePage(),
+      home: ValueListenableBuilder<AuthSuccess?>(
+        valueListenable: client.auth.authInfoListenable,
+        builder: (context, authSuccess, child) {
+          if (!client.auth.isAuthenticated) {
+            return const SignInScreen();
+          }
+          return const PromiseHomePage();
+        },
+      ),
     );
   }
 }
@@ -78,6 +89,22 @@ class _PromiseHomePageState extends State<PromiseHomePage> {
         _errorMessage =
             'Unable to connect to the server. Please verify your connection.';
       });
+    }
+  }
+
+  Future<void> _signOut() async {
+    await client.auth.signOutAllDevices();
+  }
+
+  Future<void> _openFriendsScreen() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const FriendsScreen(),
+      ),
+    );
+    if (mounted) {
+      _loadPromises();
     }
   }
 
@@ -133,6 +160,18 @@ class _PromiseHomePageState extends State<PromiseHomePage> {
           ),
         ),
         centerTitle: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.people_outlined),
+            tooltip: 'Friends',
+            onPressed: _openFriendsScreen,
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout_outlined),
+            tooltip: 'Sign Out',
+            onPressed: _signOut,
+          ),
+        ],
       ),
       body: _buildBody(theme),
       floatingActionButton: FloatingActionButton(

@@ -16,7 +16,6 @@ class RequestChangesScreen extends StatefulWidget {
 class _RequestChangesScreenState extends State<RequestChangesScreen> {
   final _formKey = GlobalKey<FormState>();
   final _reasonController = TextEditingController();
-  String _selectedRole = 'recipient';
   bool _isSaving = false;
 
   @override
@@ -49,7 +48,7 @@ class _RequestChangesScreenState extends State<RequestChangesScreen> {
     try {
       await client.promise.requestChanges(
         widget.promiseId,
-        _selectedRole,
+        'participant',
         reasonText,
       );
 
@@ -104,43 +103,6 @@ class _RequestChangesScreenState extends State<RequestChangesScreen> {
                 'Requesting changes will reset confirmations and set the overall promise status back to In Progress.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 28),
-
-              // Role Selector
-              Text(
-                'Your Role',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment<String>(
-                      value: 'creator',
-                      label: Text('Creator'),
-                      icon: Icon(Icons.edit_note_outlined),
-                    ),
-                    ButtonSegment<String>(
-                      value: 'recipient',
-                      label: Text('Recipient'),
-                      icon: Icon(Icons.person_outline),
-                    ),
-                  ],
-                  selected: {_selectedRole},
-                  onSelectionChanged: _isSaving
-                      ? null
-                      : (newSelection) {
-                          if (newSelection.isNotEmpty) {
-                            setState(() {
-                              _selectedRole = newSelection.first;
-                            });
-                          }
-                        },
                 ),
               ),
               const SizedBox(height: 24),

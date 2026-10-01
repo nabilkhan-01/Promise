@@ -9,6 +9,14 @@ emailIdp:
   - hasAccount:
 jwtRefresh:
   - refreshAccessToken:
+friend:
+  - searchUsers:
+  - sendFriendRequest:
+  - getPendingFriendRequests:
+  - acceptFriendRequest:
+  - rejectFriendRequest:
+  - getFriends:
+  - removeFriend:
 greeting:
   - hello:
 promise:

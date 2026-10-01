@@ -25,6 +25,8 @@ abstract class Promise
     required this.status,
     bool? creatorConfirmed,
     bool? recipientConfirmed,
+    this.creatorUserId,
+    this.recipientUserId,
   }) : creatorConfirmed = creatorConfirmed ?? false,
        recipientConfirmed = recipientConfirmed ?? false;
 
@@ -39,6 +41,8 @@ abstract class Promise
     required String status,
     bool? creatorConfirmed,
     bool? recipientConfirmed,
+    String? creatorUserId,
+    String? recipientUserId,
   }) = _PromiseImpl;
 
   factory Promise.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -65,6 +69,8 @@ abstract class Promise
           : _is.BoolJsonExtension.fromJson(
               jsonSerialization['recipientConfirmed'],
             ),
+      creatorUserId: jsonSerialization['creatorUserId'] as String?,
+      recipientUserId: jsonSerialization['recipientUserId'] as String?,
     );
   }
 
@@ -93,6 +99,10 @@ abstract class Promise
 
   bool recipientConfirmed;
 
+  String? creatorUserId;
+
+  String? recipientUserId;
+
   @override
   _is.Table<int?> get table => t;
 
@@ -110,6 +120,8 @@ abstract class Promise
     String? status,
     bool? creatorConfirmed,
     bool? recipientConfirmed,
+    String? creatorUserId,
+    String? recipientUserId,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -125,6 +137,8 @@ abstract class Promise
       'status': status,
       'creatorConfirmed': creatorConfirmed,
       'recipientConfirmed': recipientConfirmed,
+      if (creatorUserId != null) 'creatorUserId': creatorUserId,
+      if (recipientUserId != null) 'recipientUserId': recipientUserId,
     };
   }
 
@@ -142,6 +156,8 @@ abstract class Promise
       'status': status,
       'creatorConfirmed': creatorConfirmed,
       'recipientConfirmed': recipientConfirmed,
+      if (creatorUserId != null) 'creatorUserId': creatorUserId,
+      if (recipientUserId != null) 'recipientUserId': recipientUserId,
     };
   }
 
@@ -187,6 +203,8 @@ class _PromiseImpl extends Promise {
     required String status,
     bool? creatorConfirmed,
     bool? recipientConfirmed,
+    String? creatorUserId,
+    String? recipientUserId,
   }) : super._(
          id: id,
          title: title,
@@ -198,6 +216,8 @@ class _PromiseImpl extends Promise {
          status: status,
          creatorConfirmed: creatorConfirmed,
          recipientConfirmed: recipientConfirmed,
+         creatorUserId: creatorUserId,
+         recipientUserId: recipientUserId,
        );
 
   /// Returns a shallow copy of this [Promise]
@@ -215,6 +235,8 @@ class _PromiseImpl extends Promise {
     String? status,
     bool? creatorConfirmed,
     bool? recipientConfirmed,
+    Object? creatorUserId = _Undefined,
+    Object? recipientUserId = _Undefined,
   }) {
     return Promise(
       id: id is int? ? id : this.id,
@@ -227,6 +249,12 @@ class _PromiseImpl extends Promise {
       status: status ?? this.status,
       creatorConfirmed: creatorConfirmed ?? this.creatorConfirmed,
       recipientConfirmed: recipientConfirmed ?? this.recipientConfirmed,
+      creatorUserId: creatorUserId is String?
+          ? creatorUserId
+          : this.creatorUserId,
+      recipientUserId: recipientUserId is String?
+          ? recipientUserId
+          : this.recipientUserId,
     );
   }
 }
@@ -281,6 +309,18 @@ class PromiseUpdateTable extends _is.UpdateTable<PromiseTable> {
     table.recipientConfirmed,
     value,
   );
+
+  _is.ColumnValue<String, String> creatorUserId(String? value) =>
+      _is.ColumnValue(
+        table.creatorUserId,
+        value,
+      );
+
+  _is.ColumnValue<String, String> recipientUserId(String? value) =>
+      _is.ColumnValue(
+        table.recipientUserId,
+        value,
+      );
 }
 
 class PromiseTable extends _is.Table<int?> {
@@ -324,6 +364,14 @@ class PromiseTable extends _is.Table<int?> {
       this,
       hasDefault: true,
     );
+    creatorUserId = _is.ColumnString(
+      'creatorUserId',
+      this,
+    );
+    recipientUserId = _is.ColumnString(
+      'recipientUserId',
+      this,
+    );
   }
 
   late final PromiseUpdateTable updateTable;
@@ -346,6 +394,10 @@ class PromiseTable extends _is.Table<int?> {
 
   late final _is.ColumnBool recipientConfirmed;
 
+  late final _is.ColumnString creatorUserId;
+
+  late final _is.ColumnString recipientUserId;
+
   @override
   List<_is.Column> get columns => [
     id,
@@ -358,6 +410,8 @@ class PromiseTable extends _is.Table<int?> {
     status,
     creatorConfirmed,
     recipientConfirmed,
+    creatorUserId,
+    recipientUserId,
   ];
 }
 

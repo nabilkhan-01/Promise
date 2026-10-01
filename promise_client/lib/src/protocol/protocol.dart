@@ -11,6 +11,8 @@
 // ignore_for_file: dead_code, unnecessary_type_check
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
+import 'package:promise_client/src/protocol/friends/user_search_profile.dart'
+    as _ihsmdl90;
 import 'package:promise_client/src/protocol/promises/promise.dart' as _izrd4uei;
 import 'package:promise_client/src/protocol/promises/promise_activity.dart'
     as _irwpjxuh;
@@ -19,9 +21,13 @@ import 'package:serverpod_auth_core_client/serverpod_auth_core_client.dart'
 import 'package:serverpod_auth_idp_client/serverpod_auth_idp_client.dart'
     as _iaic;
 import 'package:serverpod_client/serverpod_client.dart' as _isc;
+import 'friends/friendship.dart' as _ix1l50pg;
+import 'friends/user_search_profile.dart' as _i6kf6063;
 import 'greetings/greeting.dart' as _izw8z7ou;
 import 'promises/promise.dart' as _i9knynp5;
 import 'promises/promise_activity.dart' as _itvtbfbt;
+export 'friends/friendship.dart';
+export 'friends/user_search_profile.dart';
 export 'greetings/greeting.dart';
 export 'promises/promise.dart';
 export 'promises/promise_activity.dart';
@@ -61,6 +67,12 @@ class Protocol extends _isc.SerializationManager {
       }
     }
 
+    if (t == _ix1l50pg.Friendship) {
+      return _ix1l50pg.Friendship.fromJson(data) as T;
+    }
+    if (t == _i6kf6063.UserSearchProfile) {
+      return _i6kf6063.UserSearchProfile.fromJson(data) as T;
+    }
     if (t == _izw8z7ou.Greeting) {
       return _izw8z7ou.Greeting.fromJson(data) as T;
     }
@@ -70,6 +82,13 @@ class Protocol extends _isc.SerializationManager {
     if (t == _itvtbfbt.PromiseActivity) {
       return _itvtbfbt.PromiseActivity.fromJson(data) as T;
     }
+    if (t == _isc.getType<_ix1l50pg.Friendship?>()) {
+      return (data != null ? _ix1l50pg.Friendship.fromJson(data) : null) as T;
+    }
+    if (t == _isc.getType<_i6kf6063.UserSearchProfile?>()) {
+      return (data != null ? _i6kf6063.UserSearchProfile.fromJson(data) : null)
+          as T;
+    }
     if (t == _isc.getType<_izw8z7ou.Greeting?>()) {
       return (data != null ? _izw8z7ou.Greeting.fromJson(data) : null) as T;
     }
@@ -78,6 +97,12 @@ class Protocol extends _isc.SerializationManager {
     }
     if (t == _isc.getType<_itvtbfbt.PromiseActivity?>()) {
       return (data != null ? _itvtbfbt.PromiseActivity.fromJson(data) : null)
+          as T;
+    }
+    if (t == List<_ihsmdl90.UserSearchProfile>) {
+      return (data as List)
+              .map((e) => deserialize<_ihsmdl90.UserSearchProfile>(e))
+              .toList()
           as T;
     }
     if (t == List<_izrd4uei.Promise>) {
@@ -103,6 +128,8 @@ class Protocol extends _isc.SerializationManager {
 
   static String? getClassNameForType(Type type) {
     return switch (type) {
+      _ix1l50pg.Friendship => 'Friendship',
+      _i6kf6063.UserSearchProfile => 'UserSearchProfile',
       _izw8z7ou.Greeting => 'Greeting',
       _i9knynp5.Promise => 'Promise',
       _itvtbfbt.PromiseActivity => 'PromiseActivity',
@@ -120,6 +147,10 @@ class Protocol extends _isc.SerializationManager {
     }
 
     switch (data) {
+      case _ix1l50pg.Friendship():
+        return 'Friendship';
+      case _i6kf6063.UserSearchProfile():
+        return 'UserSearchProfile';
       case _izw8z7ou.Greeting():
         return 'Greeting';
       case _i9knynp5.Promise():
@@ -147,6 +178,12 @@ class Protocol extends _isc.SerializationManager {
     var dataClassName = data['className'];
     if (dataClassName is! String) {
       return super.deserializeByClassName(data);
+    }
+    if (dataClassName == 'Friendship') {
+      return deserialize<_ix1l50pg.Friendship>(data['data']);
+    }
+    if (dataClassName == 'UserSearchProfile') {
+      return deserialize<_i6kf6063.UserSearchProfile>(data['data']);
     }
     if (dataClassName == 'Greeting') {
       return deserialize<_izw8z7ou.Greeting>(data['data']);

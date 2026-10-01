@@ -1,28 +1,104 @@
 import 'package:serverpod/serverpod.dart';
+import 'package:serverpod_auth_idp_server/core.dart';
 import '../generated/protocol.dart';
 
 class PromiseEndpoint extends Endpoint {
-  /// Creates a new promise and records its initial "created" activity.
+  @override
+  bool get requireLogin => true;
+
+  /// Returns the current authenticated user's AuthUserId string.
+  String _getAuthUserId(Session session) {
+    final authUserId = session.authenticated?.authUserId.toString();
+    if (authUserId == null) {
+      throw ArgumentError('Authentication required.');
+    }
+    return authUserId;
+  }
+
+  /// Helper to get user's display name or email for activity logs.
+  Future<String> _getUserDisplayName(Session session) async {
+    final userProfile = await session.authenticated?.userProfile(session);
+    if (userProfile == null) return 'User';
+    final name = userProfile.userName?.trim();
+    if (name != null && name.isNotEmpty) return name;
+    final email = userProfile.email?.trim();
+    if (email != null && email.isNotEmpty) return email;
+    return 'User';
+  }
+
+  /// Helper to get user's email address.
+  Future<String> _getUserEmail(Session session) async {
+    final userProfile = await session.authenticated?.userProfile(session);
+    return userProfile?.email?.trim().toLowerCase() ?? '';
+  }
+
+  /// Creates a new promise for an accepted friend.
   Future<Promise> createPromise(Session session, Promise promise) async {
+    final creatorUserId = _getAuthUserId(session);
+    final recipientUserId = promise.recipientUserId?.trim();
+
     if (promise.title.trim().isEmpty) {
       throw ArgumentError('Promise title cannot be empty.');
     }
-    if (promise.promisedTo.trim().isEmpty) {
-      throw ArgumentError('Promised to cannot be empty.');
+    if (recipientUserId == null || recipientUserId.isEmpty) {
+      throw ArgumentError('Recipient user must be selected.');
     }
+    if (creatorUserId == recipientUserId) {
+      throw ArgumentError('You cannot create a promise to yourself.');
+    }
+
+    // FRIENDSHIP AUTHORIZATION CHECK: Verify creator and recipient are accepted friends
+    final isFriend = await Friendship.db.findFirstRow(
+      session,
+      where: (t) =>
+          ((t.senderUserId.equals(creatorUserId) &
+                  t.receiverUserId.equals(recipientUserId)) |
+              (t.senderUserId.equals(recipientUserId) &
+                  t.receiverUserId.equals(creatorUserId))) &
+          t.status.equals('accepted'),
+    );
+
+    if (isFriend == null) {
+      throw ArgumentError(
+        'You can only create a Promise for an accepted friend.',
+      );
+    }
+
+    // Retrieve recipient's user profile for display name / email
+    String promisedToDisplay = 'Friend';
+    try {
+      final profiles = await AuthServices.instance.userProfiles.admin
+          .listUserProfiles(session, limit: 500);
+      final recipientProfile = profiles
+          .where((p) => p.authUserId.toString() == recipientUserId)
+          .firstOrNull;
+      if (recipientProfile != null) {
+        final name = recipientProfile.userName?.trim();
+        final email = recipientProfile.email?.trim();
+        if (name != null && name.isNotEmpty) {
+          promisedToDisplay = name;
+        } else if (email != null && email.isNotEmpty) {
+          promisedToDisplay = email;
+        }
+      }
+    } catch (_) {}
 
     final initialStatus = promise.status.trim().isEmpty
         ? 'pending'
         : promise.status.trim();
 
+    final creatorName = await _getUserDisplayName(session);
+
     final promiseToInsert = promise.copyWith(
       title: promise.title.trim(),
-      promisedTo: promise.promisedTo.trim(),
+      promisedTo: promisedToDisplay,
       description: promise.description?.trim(),
       createdAt: DateTime.now().toUtc(),
       status: initialStatus,
       creatorConfirmed: false,
       recipientConfirmed: false,
+      creatorUserId: creatorUserId,
+      recipientUserId: recipientUserId,
     );
 
     return await session.db.transaction((tx) async {
@@ -35,7 +111,7 @@ class PromiseEndpoint extends Endpoint {
       final activity = PromiseActivity(
         promiseId: insertedPromise.id!,
         type: 'created',
-        message: 'Promise created',
+        message: 'Promise created by $creatorName',
         status: initialStatus,
         createdAt: DateTime.now().toUtc(),
       );
@@ -50,24 +126,70 @@ class PromiseEndpoint extends Endpoint {
     });
   }
 
-  /// Retrieves all promises ordered newest-created first.
+  /// Retrieves promises relevant to the current authenticated user.
   Future<List<Promise>> getPromises(Session session) async {
-    return await Promise.db.find(
+    final authUserId = _getAuthUserId(session);
+    final userEmail = await _getUserEmail(session);
+
+    final promises = await Promise.db.find(
       session,
+      where: (t) =>
+          t.creatorUserId.equals(authUserId) |
+          t.recipientUserId.equals(authUserId) |
+          (t.recipientUserId.equals(null) & t.promisedTo.ilike(userEmail)),
       orderBy: (t) => t.createdAt.desc(),
     );
+
+    // Auto-bind recipientUserId if matching by email
+    for (final p in promises) {
+      if (p.recipientUserId == null &&
+          userEmail.isNotEmpty &&
+          p.promisedTo.trim().toLowerCase() == userEmail) {
+        final updated = p.copyWith(recipientUserId: authUserId);
+        await Promise.db.updateRow(session, updated);
+      }
+    }
+
+    return promises;
   }
 
-  /// Retrieves a single promise by ID.
+  /// Retrieves a single promise by ID after authorizing participant access.
   Future<Promise?> getPromise(Session session, int id) async {
-    return await Promise.db.findById(session, id);
+    final authUserId = _getAuthUserId(session);
+    final userEmail = await _getUserEmail(session);
+
+    final promise = await Promise.db.findById(session, id);
+    if (promise == null) return null;
+
+    final isCreator = promise.creatorUserId == authUserId;
+    final isRecipient =
+        promise.recipientUserId == authUserId ||
+        (promise.recipientUserId == null &&
+            userEmail.isNotEmpty &&
+            promise.promisedTo.trim().toLowerCase() == userEmail);
+
+    if (!isCreator && !isRecipient) {
+      throw ArgumentError('You do not have access to this promise.');
+    }
+
+    if (promise.recipientUserId == null && isRecipient) {
+      final updated = promise.copyWith(recipientUserId: authUserId);
+      return await Promise.db.updateRow(session, updated);
+    }
+
+    return promise;
   }
 
-  /// Retrieves activities for a promise ordered oldest to newest.
+  /// Retrieves activities for a promise after authorizing participant access.
   Future<List<PromiseActivity>> getActivities(
     Session session,
     int promiseId,
   ) async {
+    final promise = await getPromise(session, promiseId);
+    if (promise == null) {
+      throw ArgumentError('Promise with ID $promiseId not found.');
+    }
+
     return await PromiseActivity.db.find(
       session,
       where: (t) => t.promiseId.equals(promiseId),
@@ -75,7 +197,7 @@ class PromiseEndpoint extends Endpoint {
     );
   }
 
-  /// Adds a new activity update for a promise. Rejects updates if promise is already completed.
+  /// Adds a new activity update for a promise. Does NOT alter overall promise status.
   Future<PromiseActivity> addActivity(
     Session session,
     int promiseId,
@@ -88,7 +210,7 @@ class PromiseEndpoint extends Endpoint {
       throw ArgumentError('Activity message cannot be empty.');
     }
 
-    final promise = await Promise.db.findById(session, promiseId);
+    final promise = await getPromise(session, promiseId);
     if (promise == null) {
       throw ArgumentError('Promise with ID $promiseId not found.');
     }
@@ -97,10 +219,13 @@ class PromiseEndpoint extends Endpoint {
       throw ArgumentError('Completed promises cannot receive new updates.');
     }
 
+    final userName = await _getUserDisplayName(session);
+    final formattedMessage = '$userName: $cleanMessage';
+
     final activity = PromiseActivity(
       promiseId: promiseId,
       type: type.trim().isEmpty ? 'update' : type.trim(),
-      message: cleanMessage,
+      message: formattedMessage,
       status: activityStatus?.trim().isEmpty == true
           ? null
           : activityStatus?.trim(),
@@ -110,53 +235,66 @@ class PromiseEndpoint extends Endpoint {
     return await PromiseActivity.db.insertRow(session, activity);
   }
 
-  /// Confirms promise completion for a specific role ('creator' or 'recipient').
-  /// Both parties must confirm before the promise status becomes 'completed'.
+  /// Confirms promise completion. Role is derived from authenticated user identity.
   Future<Promise> confirmPromiseCompletion(
     Session session,
     int promiseId,
     String role,
   ) async {
-    final cleanRole = role.trim().toLowerCase();
-    if (cleanRole != 'creator' && cleanRole != 'recipient') {
-      throw ArgumentError('Role must be either "creator" or "recipient".');
-    }
+    final authUserId = _getAuthUserId(session);
+    final userEmail = await _getUserEmail(session);
 
     final existing = await Promise.db.findById(session, promiseId);
     if (existing == null) {
       throw ArgumentError('Promise with ID $promiseId not found.');
     }
 
-    // Safe/idempotent check: if already completed or role is confirmed, return without duplicate activities
+    bool isCreator = existing.creatorUserId == authUserId;
+    bool isRecipient =
+        existing.recipientUserId == authUserId ||
+        (existing.recipientUserId == null &&
+            userEmail.isNotEmpty &&
+            existing.promisedTo.trim().toLowerCase() == userEmail);
+
+    if (!isCreator && !isRecipient) {
+      throw ArgumentError('You are not a participant of this promise.');
+    }
+
+    // Role is derived on server, not trusted from client parameter
+    final resolvedRole = isCreator ? 'creator' : 'recipient';
+
     if (existing.status == 'completed' ||
-        (cleanRole == 'creator' && existing.creatorConfirmed) ||
-        (cleanRole == 'recipient' && existing.recipientConfirmed)) {
+        (resolvedRole == 'creator' && existing.creatorConfirmed) ||
+        (resolvedRole == 'recipient' && existing.recipientConfirmed)) {
       return existing;
     }
 
-    final newCreatorConfirmed = cleanRole == 'creator'
+    final newCreatorConfirmed = resolvedRole == 'creator'
         ? true
         : existing.creatorConfirmed;
-    final newRecipientConfirmed = cleanRole == 'recipient'
+    final newRecipientConfirmed = resolvedRole == 'recipient'
         ? true
         : existing.recipientConfirmed;
 
     final bothConfirmed = newCreatorConfirmed && newRecipientConfirmed;
     final newStatus = bothConfirmed ? 'completed' : 'awaiting_confirmation';
 
+    final userName = await _getUserDisplayName(session);
+
     String activityMessage;
     if (bothConfirmed) {
-      activityMessage = 'Promise completed — both parties confirmed';
+      activityMessage =
+          'Promise completed — confirmed by $userName ($resolvedRole)';
     } else {
-      activityMessage = cleanRole == 'creator'
-          ? 'Creator confirmed completion'
-          : 'Recipient confirmed completion';
+      activityMessage = '$userName ($resolvedRole) confirmed completion';
     }
 
     return await session.db.transaction((tx) async {
       final updatedPromise = existing.copyWith(
         creatorConfirmed: newCreatorConfirmed,
         recipientConfirmed: newRecipientConfirmed,
+        recipientUserId:
+            existing.recipientUserId ?? (isRecipient ? authUserId : null),
         status: newStatus,
       );
 
@@ -184,18 +322,15 @@ class PromiseEndpoint extends Endpoint {
     });
   }
 
-  /// Requests changes for a promise, resetting confirmations and setting status to 'in_progress'.
-  /// Rejects requests if promise is already completed.
+  /// Requests changes for a promise. Role is derived from authenticated user identity.
   Future<Promise> requestChanges(
     Session session,
     int promiseId,
     String role,
     String reason,
   ) async {
-    final cleanRole = role.trim().toLowerCase();
-    if (cleanRole != 'creator' && cleanRole != 'recipient') {
-      throw ArgumentError('Role must be either "creator" or "recipient".');
-    }
+    final authUserId = _getAuthUserId(session);
+    final userEmail = await _getUserEmail(session);
 
     final cleanReason = reason.trim();
     if (cleanReason.isEmpty) {
@@ -211,12 +346,26 @@ class PromiseEndpoint extends Endpoint {
       throw ArgumentError('Completed promises cannot be changed.');
     }
 
-    final roleLabel = cleanRole == 'creator' ? 'Creator' : 'Recipient';
+    bool isCreator = existing.creatorUserId == authUserId;
+    bool isRecipient =
+        existing.recipientUserId == authUserId ||
+        (existing.recipientUserId == null &&
+            userEmail.isNotEmpty &&
+            existing.promisedTo.trim().toLowerCase() == userEmail);
+
+    if (!isCreator && !isRecipient) {
+      throw ArgumentError('You are not a participant of this promise.');
+    }
+
+    final resolvedRole = isCreator ? 'creator' : 'recipient';
+    final userName = await _getUserDisplayName(session);
 
     return await session.db.transaction((tx) async {
       final updatedPromise = existing.copyWith(
         creatorConfirmed: false,
         recipientConfirmed: false,
+        recipientUserId:
+            existing.recipientUserId ?? (isRecipient ? authUserId : null),
         status: 'in_progress',
       );
 
@@ -229,7 +378,7 @@ class PromiseEndpoint extends Endpoint {
       final activity = PromiseActivity(
         promiseId: promiseId,
         type: 'request_changes',
-        message: '$roleLabel requested changes: $cleanReason',
+        message: '$userName ($resolvedRole) requested changes: $cleanReason',
         status: 'in_progress',
         createdAt: DateTime.now().toUtc(),
       );
@@ -245,8 +394,6 @@ class PromiseEndpoint extends Endpoint {
   }
 
   /// Explicitly updates the overall status of a promise.
-  /// Enforces that 'completed' CANNOT be set manually unless both parties have confirmed,
-  /// and that completed promises cannot be changed.
   Future<Promise> updatePromiseStatus(
     Session session,
     int promiseId,
@@ -257,33 +404,31 @@ class PromiseEndpoint extends Endpoint {
       throw ArgumentError('New status cannot be empty.');
     }
 
+    final existing = await getPromise(session, promiseId);
+    if (existing == null) {
+      throw ArgumentError('Promise with ID $promiseId not found.');
+    }
+
+    if (existing.status == cleanStatus) {
+      return existing;
+    }
+
+    if (existing.status == 'completed') {
+      throw ArgumentError('Completed promises cannot be changed.');
+    }
+
+    if (cleanStatus == 'completed') {
+      if (!existing.creatorConfirmed || !existing.recipientConfirmed) {
+        throw ArgumentError(
+          'Overall promise status cannot be set to "completed" until both parties have confirmed completion.',
+        );
+      }
+    }
+
+    final userName = await _getUserDisplayName(session);
+
     return await session.db.transaction((tx) async {
-      final promise = await Promise.db.findById(
-        session,
-        promiseId,
-        transaction: tx,
-      );
-      if (promise == null) {
-        throw ArgumentError('Promise with ID $promiseId not found.');
-      }
-
-      if (promise.status == cleanStatus) {
-        return promise;
-      }
-
-      if (promise.status == 'completed') {
-        throw ArgumentError('Completed promises cannot be changed.');
-      }
-
-      if (cleanStatus == 'completed') {
-        if (!promise.creatorConfirmed || !promise.recipientConfirmed) {
-          throw ArgumentError(
-            'Overall promise status cannot be set to "completed" until both parties have confirmed completion.',
-          );
-        }
-      }
-
-      final updatedPromise = promise.copyWith(
+      final updatedPromise = existing.copyWith(
         status: cleanStatus,
       );
 
@@ -304,7 +449,7 @@ class PromiseEndpoint extends Endpoint {
       final activity = PromiseActivity(
         promiseId: promiseId,
         type: 'status_change',
-        message: 'Overall status changed to $readableStatus',
+        message: '$userName changed status to $readableStatus',
         status: cleanStatus,
         createdAt: DateTime.now().toUtc(),
       );

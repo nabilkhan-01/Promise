@@ -1,0 +1,7 @@
+class: UserSearchProfile
+fields:
+  userId: String
+  userName: String?
+  email: String
+  friendshipStatus: String?
+  friendshipId: int?

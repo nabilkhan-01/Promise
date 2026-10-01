@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:promise_client/promise_client.dart';
 import '../client.dart';
+import 'select_friend_screen.dart';
 
 class CreatePromiseScreen extends StatefulWidget {
   const CreatePromiseScreen({super.key});
@@ -13,18 +14,19 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
   final _formKey = GlobalKey<FormState>();
 
   final _titleController = TextEditingController();
-  final _personController = TextEditingController();
   final _descriptionController = TextEditingController();
 
+  UserSearchProfile? _selectedFriend;
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
+
+  String? _friendError;
   String? _dateError;
   bool _isLoading = false;
 
   @override
   void dispose() {
     _titleController.dispose();
-    _personController.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
@@ -48,6 +50,26 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
     final weekday = weekdays[date.weekday - 1];
     final month = months[date.month - 1];
     return '$weekday, $month ${date.day}, ${date.year}';
+  }
+
+  Future<void> _selectFriend() async {
+    if (_isLoading) return;
+
+    final selected = await Navigator.push<UserSearchProfile?>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SelectFriendScreen(
+          currentSelectedUserId: _selectedFriend?.userId,
+        ),
+      ),
+    );
+
+    if (selected != null) {
+      setState(() {
+        _selectedFriend = selected;
+        _friendError = null;
+      });
+    }
   }
 
   Future<void> _pickDate() async {
@@ -98,7 +120,14 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
     if (_isLoading) return;
 
     final isFormValid = _formKey.currentState!.validate();
+    final isFriendValid = _selectedFriend != null;
     final isDateValid = _selectedDate != null;
+
+    if (!isFriendValid) {
+      setState(() {
+        _friendError = 'Please select a recipient friend.';
+      });
+    }
 
     if (!isDateValid) {
       setState(() {
@@ -106,7 +135,7 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
       });
     }
 
-    if (!isFormValid || !isDateValid) {
+    if (!isFormValid || !isFriendValid || !isDateValid) {
       return;
     }
 
@@ -131,9 +160,16 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
       ).toUtc();
     }
 
+    final recipientDisplayName =
+        (_selectedFriend!.userName != null &&
+            _selectedFriend!.userName!.trim().isNotEmpty)
+        ? _selectedFriend!.userName!
+        : _selectedFriend!.email;
+
     final promiseToCreate = Promise(
       title: _titleController.text.trim(),
-      promisedTo: _personController.text.trim(),
+      promisedTo: recipientDisplayName,
+      recipientUserId: _selectedFriend!.userId,
       description: _descriptionController.text.trim().isEmpty
           ? null
           : _descriptionController.text.trim(),
@@ -159,8 +195,10 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text(
-            'Could not save promise. Please check your connection and try again.',
+          content: Text(
+            e.toString().contains('friend')
+                ? 'You can only create promises for accepted friends.'
+                : 'Could not save promise. Please check your connection.',
           ),
           behavior: SnackBarBehavior.floating,
           backgroundColor: Theme.of(context).colorScheme.error,
@@ -225,24 +263,55 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
               ),
               const SizedBox(height: 18),
 
-              // Promised To
-              TextFormField(
-                controller: _personController,
-                enabled: !_isLoading,
-                textCapitalization: TextCapitalization.words,
-                textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: 'Promised to *',
-                  hintText: 'e.g. Rahul',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.person_outline),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter who you made this promise to.';
-                  }
-                  return null;
-                },
+              // Recipient Friend Selector
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _isLoading ? null : _selectFriend,
+                    icon: const Icon(Icons.person_outline),
+                    label: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _selectedFriend == null
+                                ? 'Select Recipient Friend *'
+                                : 'Promised to: ${_selectedFriend!.userName ?? _selectedFriend!.email}',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: _selectedFriend == null
+                                  ? theme.colorScheme.onSurfaceVariant
+                                  : theme.colorScheme.onSurface,
+                              fontWeight: _selectedFriend == null
+                                  ? FontWeight.normal
+                                  : FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const Icon(Icons.arrow_drop_down),
+                      ],
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                      side: _friendError != null
+                          ? BorderSide(color: theme.colorScheme.error)
+                          : null,
+                    ),
+                  ),
+                  if (_friendError != null) ...[
+                    const SizedBox(height: 6),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 12),
+                      child: Text(
+                        _friendError!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
               const SizedBox(height: 18),
 
