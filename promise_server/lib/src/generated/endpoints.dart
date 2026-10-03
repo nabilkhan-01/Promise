@@ -17,8 +17,8 @@ import 'package:serverpod_auth_core_server/serverpod_auth_core_server.dart'
     as _iacs;
 import 'package:serverpod_auth_idp_server/serverpod_auth_idp_server.dart'
     as _iais;
-import '../auth/email_idp_endpoint.dart' as _iuc1hd5t;
 import '../auth/jwt_refresh_endpoint.dart' as _inwq3ztq;
+import '../endpoints/email_idp_endpoint.dart' as _ilutrrxn;
 import '../friends/friend_endpoint.dart' as _ib9qa24p;
 import '../greetings/greeting_endpoint.dart' as _il624ik7;
 import '../promises/promise_endpoint.dart' as _itrz4nk3;
@@ -27,16 +27,16 @@ class Endpoints extends _is.EndpointDispatch {
   @override
   void initializeEndpoints(_is.Server server) {
     var endpoints = <String, _is.Endpoint>{
-      'emailIdp': _iuc1hd5t.EmailIdpEndpoint()
-        ..initialize(
-          server,
-          'emailIdp',
-          null,
-        ),
       'jwtRefresh': _inwq3ztq.JwtRefreshEndpoint()
         ..initialize(
           server,
           'jwtRefresh',
+          null,
+        ),
+      'emailIdp': _ilutrrxn.EmailIdpEndpoint()
+        ..initialize(
+          server,
+          'emailIdp',
           null,
         ),
       'friend': _ib9qa24p.FriendEndpoint()
@@ -58,10 +58,55 @@ class Endpoints extends _is.EndpointDispatch {
           null,
         ),
     };
+    connectors['jwtRefresh'] = _is.EndpointConnector(
+      name: 'jwtRefresh',
+      endpoint: endpoints['jwtRefresh']!,
+      methodConnectors: {
+        'refreshAccessToken': _is.MethodConnector(
+          name: 'refreshAccessToken',
+          params: {
+            'refreshToken': _is.ParameterDescription(
+              name: 'refreshToken',
+              type: _is.getType<String?>(),
+              nullable: true,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['jwtRefresh'] as _inwq3ztq.JwtRefreshEndpoint)
+                      .refreshAccessToken(
+                        session,
+                        refreshToken: params['refreshToken'],
+                      ),
+        ),
+      },
+    );
     connectors['emailIdp'] = _is.EndpointConnector(
       name: 'emailIdp',
       endpoint: endpoints['emailIdp']!,
       methodConnectors: {
+        'startRegistration': _is.MethodConnector(
+          name: 'startRegistration',
+          params: {
+            'email': _is.ParameterDescription(
+              name: 'email',
+              type: _is.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['emailIdp'] as _ilutrrxn.EmailIdpEndpoint)
+                  .startRegistration(
+                    session,
+                    email: params['email'],
+                  ),
+        ),
         'login': _is.MethodConnector(
           name: 'login',
           params: {
@@ -81,14 +126,14 @@ class Endpoints extends _is.EndpointDispatch {
                 _is.Session session,
                 Map<String, dynamic> params,
               ) async =>
-                  (endpoints['emailIdp'] as _iuc1hd5t.EmailIdpEndpoint).login(
+                  (endpoints['emailIdp'] as _ilutrrxn.EmailIdpEndpoint).login(
                     session,
                     email: params['email'],
                     password: params['password'],
                   ),
         ),
-        'startRegistration': _is.MethodConnector(
-          name: 'startRegistration',
+        'startPasswordReset': _is.MethodConnector(
+          name: 'startPasswordReset',
           params: {
             'email': _is.ParameterDescription(
               name: 'email',
@@ -100,8 +145,8 @@ class Endpoints extends _is.EndpointDispatch {
               (
                 _is.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['emailIdp'] as _iuc1hd5t.EmailIdpEndpoint)
-                  .startRegistration(
+              ) async => (endpoints['emailIdp'] as _ilutrrxn.EmailIdpEndpoint)
+                  .startPasswordReset(
                     session,
                     email: params['email'],
                   ),
@@ -124,7 +169,7 @@ class Endpoints extends _is.EndpointDispatch {
               (
                 _is.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['emailIdp'] as _iuc1hd5t.EmailIdpEndpoint)
+              ) async => (endpoints['emailIdp'] as _ilutrrxn.EmailIdpEndpoint)
                   .verifyRegistrationCode(
                     session,
                     accountRequestId: params['accountRequestId'],
@@ -149,30 +194,11 @@ class Endpoints extends _is.EndpointDispatch {
               (
                 _is.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['emailIdp'] as _iuc1hd5t.EmailIdpEndpoint)
+              ) async => (endpoints['emailIdp'] as _ilutrrxn.EmailIdpEndpoint)
                   .finishRegistration(
                     session,
                     registrationToken: params['registrationToken'],
                     password: params['password'],
-                  ),
-        ),
-        'startPasswordReset': _is.MethodConnector(
-          name: 'startPasswordReset',
-          params: {
-            'email': _is.ParameterDescription(
-              name: 'email',
-              type: _is.getType<String>(),
-              nullable: false,
-            ),
-          },
-          call:
-              (
-                _is.Session session,
-                Map<String, dynamic> params,
-              ) async => (endpoints['emailIdp'] as _iuc1hd5t.EmailIdpEndpoint)
-                  .startPasswordReset(
-                    session,
-                    email: params['email'],
                   ),
         ),
         'verifyPasswordResetCode': _is.MethodConnector(
@@ -193,7 +219,7 @@ class Endpoints extends _is.EndpointDispatch {
               (
                 _is.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['emailIdp'] as _iuc1hd5t.EmailIdpEndpoint)
+              ) async => (endpoints['emailIdp'] as _ilutrrxn.EmailIdpEndpoint)
                   .verifyPasswordResetCode(
                     session,
                     passwordResetRequestId: params['passwordResetRequestId'],
@@ -218,7 +244,7 @@ class Endpoints extends _is.EndpointDispatch {
               (
                 _is.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['emailIdp'] as _iuc1hd5t.EmailIdpEndpoint)
+              ) async => (endpoints['emailIdp'] as _ilutrrxn.EmailIdpEndpoint)
                   .finishPasswordReset(
                     session,
                     finishPasswordResetToken:
@@ -233,34 +259,8 @@ class Endpoints extends _is.EndpointDispatch {
               (
                 _is.Session session,
                 Map<String, dynamic> params,
-              ) async => (endpoints['emailIdp'] as _iuc1hd5t.EmailIdpEndpoint)
+              ) async => (endpoints['emailIdp'] as _ilutrrxn.EmailIdpEndpoint)
                   .hasAccount(session),
-        ),
-      },
-    );
-    connectors['jwtRefresh'] = _is.EndpointConnector(
-      name: 'jwtRefresh',
-      endpoint: endpoints['jwtRefresh']!,
-      methodConnectors: {
-        'refreshAccessToken': _is.MethodConnector(
-          name: 'refreshAccessToken',
-          params: {
-            'refreshToken': _is.ParameterDescription(
-              name: 'refreshToken',
-              type: _is.getType<String?>(),
-              nullable: true,
-            ),
-          },
-          call:
-              (
-                _is.Session session,
-                Map<String, dynamic> params,
-              ) async =>
-                  (endpoints['jwtRefresh'] as _inwq3ztq.JwtRefreshEndpoint)
-                      .refreshAccessToken(
-                        session,
-                        refreshToken: params['refreshToken'],
-                      ),
         ),
       },
     );

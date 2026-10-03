@@ -1,14 +1,14 @@
+jwtRefresh:
+  - refreshAccessToken:
 emailIdp:
-  - login:
   - startRegistration:
+  - login:
+  - startPasswordReset:
   - verifyRegistrationCode:
   - finishRegistration:
-  - startPasswordReset:
   - verifyPasswordResetCode:
   - finishPasswordReset:
   - hasAccount:
-jwtRefresh:
-  - refreshAccessToken:
 friend:
   - searchUsers:
   - sendFriendRequest:

@@ -1,0 +1,3 @@
+exception: AccountNotFoundException
+fields:
+  message: String

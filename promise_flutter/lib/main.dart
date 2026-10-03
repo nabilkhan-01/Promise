@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:promise_client/promise_client.dart';
 import 'package:serverpod_auth_idp_flutter/serverpod_auth_idp_flutter.dart';
@@ -7,12 +9,9 @@ import 'screens/friends_screen.dart';
 import 'screens/promise_preparation_screen.dart';
 import 'screens/sign_in_screen.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Keep Serverpod client initialization.
-  await initializeClient();
-
+  debugPrint('MAIN: App starting, calling runApp()...');
   runApp(const PromiseApp());
 }
 
@@ -38,16 +37,181 @@ class PromiseApp extends StatelessWidget {
         useMaterial3: true,
       ),
       themeMode: ThemeMode.system,
-      home: ValueListenableBuilder<AuthSuccess?>(
-        valueListenable: client.auth.authInfoListenable,
-        builder: (context, authSuccess, child) {
-          if (!client.auth.isAuthenticated) {
-            return const SignInScreen();
-          }
-          return const PromiseHomePage();
-        },
-      ),
+      home: const StartupGate(),
     );
+  }
+}
+
+enum StartupState {
+  loading,
+  authenticated,
+  unauthenticated,
+  error,
+}
+
+class StartupGate extends StatefulWidget {
+  const StartupGate({super.key});
+
+  @override
+  State<StartupGate> createState() => _StartupGateState();
+}
+
+class _StartupGateState extends State<StartupGate> {
+  StartupState _state = StartupState.loading;
+  String? _errorMessage;
+  bool _isInitializing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initApp();
+  }
+
+  Future<void> _initApp() async {
+    if (_isInitializing) return;
+    _isInitializing = true;
+
+    debugPrint('APP: Rendering startup gate...');
+    setState(() {
+      _state = StartupState.loading;
+      _errorMessage = null;
+    });
+
+    try {
+      debugPrint('CLIENT: Setting up Serverpod client...');
+      await setupClient();
+
+      debugPrint('AUTH: Initialize starting...');
+      await client.auth.initialize().timeout(const Duration(seconds: 10));
+
+      debugPrint('AUTH: Initialize completed.');
+      debugPrint('AUTH: authenticated = ${client.auth.isAuthenticated}');
+
+      if (!mounted) return;
+
+      setState(() {
+        _state = client.auth.isAuthenticated
+            ? StartupState.authenticated
+            : StartupState.unauthenticated;
+      });
+    } catch (e, stack) {
+      debugPrint('AUTH INIT EXCEPTION: $e');
+      debugPrint(stack.toString());
+
+      if (!mounted) return;
+
+      setState(() {
+        _state = StartupState.error;
+        _errorMessage = e is TimeoutException
+            ? 'Server connection timed out. Please verify that the Promise server is running.'
+            : 'Unable to connect to Promise server. Please check your connection and try again.';
+      });
+    } finally {
+      _isInitializing = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    switch (_state) {
+      case StartupState.loading:
+        return Scaffold(
+          body: SafeArea(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.handshake_outlined,
+                      size: 72,
+                      color: theme.colorScheme.primary,
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Promise',
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Keep commitments clear, trackable, and documented.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 36),
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Connecting to server...',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+
+      case StartupState.error:
+        return Scaffold(
+          body: SafeArea(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.cloud_off_outlined,
+                      size: 64,
+                      color: theme.colorScheme.error,
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Unable to Connect',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      _errorMessage ??
+                          'Unable to connect to Promise server. Make sure the server is running.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 28),
+                    FilledButton.icon(
+                      onPressed: _initApp,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+
+      case StartupState.authenticated:
+      case StartupState.unauthenticated:
+        return ValueListenableBuilder<AuthSuccess?>(
+          valueListenable: client.auth.authInfoListenable,
+          builder: (context, authSuccess, child) {
+            if (!client.auth.isAuthenticated) {
+              return const SignInScreen();
+            }
+            return const PromiseHomePage();
+          },
+        );
+    }
   }
 }
 

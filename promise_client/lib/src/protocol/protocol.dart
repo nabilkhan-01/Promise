@@ -21,11 +21,13 @@ import 'package:serverpod_auth_core_client/serverpod_auth_core_client.dart'
 import 'package:serverpod_auth_idp_client/serverpod_auth_idp_client.dart'
     as _iaic;
 import 'package:serverpod_client/serverpod_client.dart' as _isc;
+import 'auth/account_not_found_exception.dart' as _i12ji7k4;
 import 'friends/friendship.dart' as _ix1l50pg;
 import 'friends/user_search_profile.dart' as _i6kf6063;
 import 'greetings/greeting.dart' as _izw8z7ou;
 import 'promises/promise.dart' as _i9knynp5;
 import 'promises/promise_activity.dart' as _itvtbfbt;
+export 'auth/account_not_found_exception.dart';
 export 'friends/friendship.dart';
 export 'friends/user_search_profile.dart';
 export 'greetings/greeting.dart';
@@ -67,6 +69,9 @@ class Protocol extends _isc.SerializationManager {
       }
     }
 
+    if (t == _i12ji7k4.AccountNotFoundException) {
+      return _i12ji7k4.AccountNotFoundException.fromJson(data) as T;
+    }
     if (t == _ix1l50pg.Friendship) {
       return _ix1l50pg.Friendship.fromJson(data) as T;
     }
@@ -81,6 +86,12 @@ class Protocol extends _isc.SerializationManager {
     }
     if (t == _itvtbfbt.PromiseActivity) {
       return _itvtbfbt.PromiseActivity.fromJson(data) as T;
+    }
+    if (t == _isc.getType<_i12ji7k4.AccountNotFoundException?>()) {
+      return (data != null
+              ? _i12ji7k4.AccountNotFoundException.fromJson(data)
+              : null)
+          as T;
     }
     if (t == _isc.getType<_ix1l50pg.Friendship?>()) {
       return (data != null ? _ix1l50pg.Friendship.fromJson(data) : null) as T;
@@ -128,6 +139,7 @@ class Protocol extends _isc.SerializationManager {
 
   static String? getClassNameForType(Type type) {
     return switch (type) {
+      _i12ji7k4.AccountNotFoundException => 'AccountNotFoundException',
       _ix1l50pg.Friendship => 'Friendship',
       _i6kf6063.UserSearchProfile => 'UserSearchProfile',
       _izw8z7ou.Greeting => 'Greeting',
@@ -147,6 +159,8 @@ class Protocol extends _isc.SerializationManager {
     }
 
     switch (data) {
+      case _i12ji7k4.AccountNotFoundException():
+        return 'AccountNotFoundException';
       case _ix1l50pg.Friendship():
         return 'Friendship';
       case _i6kf6063.UserSearchProfile():
@@ -178,6 +192,9 @@ class Protocol extends _isc.SerializationManager {
     var dataClassName = data['className'];
     if (dataClassName is! String) {
       return super.deserializeByClassName(data);
+    }
+    if (dataClassName == 'AccountNotFoundException') {
+      return deserialize<_i12ji7k4.AccountNotFoundException>(data['data']);
     }
     if (dataClassName == 'Friendship') {
       return deserialize<_ix1l50pg.Friendship>(data['data']);

@@ -39,10 +39,45 @@ pubspec_overrides.yaml
 
 
 # ----------------------------------------
-# Serverpod Cloud CLI
+# Serverpod
 # ----------------------------------------
 
 .scloud/
+
+# Serverpod local configuration / secrets
+**/config/passwords.yaml
+**/config/passwords.*.yaml
+
+
+# ----------------------------------------
+# Environment / Secrets
+# ----------------------------------------
+
+.env
+.env.*
+!.env.example
+
+# Local secret/config files
+secrets/
+*.secret
+
+
+# ----------------------------------------
+# Android Signing
+# ----------------------------------------
+
+**/android/key.properties
+**/*.jks
+**/*.keystore
+
+
+# ----------------------------------------
+# Logs / Temporary files
+# ----------------------------------------
+
+*.log
+*.tmp
+*.temp
 
 
 # ----------------------------------------
@@ -51,3 +86,4 @@ pubspec_overrides.yaml
 
 .DS_Store
 Thumbs.db
+desktop.ini
