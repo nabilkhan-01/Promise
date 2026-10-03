@@ -1,9 +1,9 @@
-import 'package:mailer/mailer.dart' as mailer;
-import 'package:mailer/smtp_server.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:serverpod/serverpod.dart';
 
 class BrevoEmailService {
-  /// Sends a registration verification email via Brevo SMTP.
+  /// Sends a registration verification email via Brevo REST API.
   static Future<void> sendRegistrationVerificationCode(
     Session session, {
     required UuidValue accountRequestId,
@@ -19,7 +19,7 @@ class BrevoEmailService {
     );
   }
 
-  /// Sends a password reset verification email via Brevo SMTP.
+  /// Sends a password reset verification email via Brevo REST API.
   static Future<void> sendPasswordResetVerificationCode(
     Session session, {
     required String email,
@@ -35,7 +35,8 @@ class BrevoEmailService {
     );
   }
 
-  /// Internal method to send a verification email via Brevo SMTP.
+  /// Internal method to send a verification email via Brevo Transactional Email REST API.
+  /// Uses POST https://api.brevo.com/v3/smtp/email over HTTPS (port 443).
   static Future<void> _sendVerificationCode({
     required Session session,
     required String recipientEmail,
@@ -44,24 +45,9 @@ class BrevoEmailService {
   }) async {
     final cleanEmail = recipientEmail.trim().toLowerCase();
 
-    final host =
-        session.serverpod.getPassword('brevoSmtpHost') ??
-        session.passwords['brevoSmtpHost'] ??
-        'smtp-relay.brevo.com';
-
-    final portVal =
-        session.serverpod.getPassword('brevoSmtpPort') ??
-        session.passwords['brevoSmtpPort'] ??
-        2525;
-    final port = int.tryParse(portVal.toString()) ?? 2525;
-
-    final username =
-        session.serverpod.getPassword('brevoSmtpUsername') ??
-        session.passwords['brevoSmtpUsername'];
-
-    final smtpKey =
-        session.serverpod.getPassword('brevoSmtpKey') ??
-        session.passwords['brevoSmtpKey'];
+    final apiKey =
+        session.serverpod.getPassword('brevoApiKey') ??
+        session.passwords['brevoApiKey'];
 
     final senderEmail =
         session.serverpod.getPassword('brevoSenderEmail') ??
@@ -73,15 +59,12 @@ class BrevoEmailService {
         session.passwords['brevoSenderName'] ??
         'Promise';
 
-    if (username == null ||
-        username.trim().isEmpty ||
-        smtpKey == null ||
-        smtpKey.trim().isEmpty) {
+    if (apiKey == null || apiKey.trim().isEmpty) {
       session.log(
-        '[EmailIDP] Brevo SMTP credentials not configured in passwords.yaml',
+        '[EmailIDP] brevoApiKey secret not configured in passwords.yaml / Cloud secrets',
         level: LogLevel.error,
       );
-      return;
+      throw Exception('BrevoDeliveryError');
     }
 
     final subject = isPasswordReset
@@ -149,39 +132,59 @@ Promise Team
 ''';
 
     session.log(
-      '[EmailIDP] Attempting Brevo SMTP delivery for $cleanEmail (${isPasswordReset ? 'PasswordReset' : 'Registration'})',
+      '[EmailIDP] Attempting Brevo API email delivery for $cleanEmail (${isPasswordReset ? 'PasswordReset' : 'Registration'})',
       level: LogLevel.info,
     );
 
-    final smtpServer = SmtpServer(
-      host,
-      port: port,
-      ssl: false,
-      allowInsecure: false,
-      username: username,
-      password: smtpKey,
-    );
-
-    final message = mailer.Message()
-      ..from = mailer.Address(senderEmail, senderName)
-      ..recipients.add(cleanEmail)
-      ..subject = subject
-      ..text = bodyText
-      ..html = bodyHtml;
-
     try {
-      final sendReport = await mailer.send(message, smtpServer);
-      session.log(
-        '[EmailIDP] Brevo SMTP delivery succeeded for $cleanEmail (Report: ${sendReport.toString().split(' ').first})',
-        level: LogLevel.info,
+      final response = await http.post(
+        Uri.parse('https://api.brevo.com/v3/smtp/email'),
+        headers: {
+          'accept': 'application/json',
+          'api-key': apiKey.trim(),
+          'content-type': 'application/json',
+        },
+        body: jsonEncode({
+          'sender': {
+            'name': senderName,
+            'email': senderEmail,
+          },
+          'to': [
+            {
+              'email': cleanEmail,
+            },
+          ],
+          'subject': subject,
+          'htmlContent': bodyHtml,
+          'textContent': bodyText,
+        }),
       );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        session.log(
+          '[EmailIDP] Brevo API email delivery succeeded for $cleanEmail (Status: ${response.statusCode})',
+          level: LogLevel.info,
+        );
+        return;
+      } else {
+        final safeResponseBody = response.body.length > 300
+            ? '${response.body.substring(0, 300)}...'
+            : response.body;
+        session.log(
+          '[EmailIDP] Brevo API delivery failed for $cleanEmail (Status: ${response.statusCode}, Body: $safeResponseBody)',
+          level: LogLevel.error,
+        );
+        throw Exception('BrevoDeliveryError');
+      }
     } catch (e, stack) {
-      session.log(
-        '[EmailIDP] Brevo SMTP delivery failed for $cleanEmail: $e',
-        level: LogLevel.error,
-        exception: e,
-        stackTrace: stack,
-      );
+      if (e is! Exception || !e.toString().contains('BrevoDeliveryError')) {
+        session.log(
+          '[EmailIDP] Brevo API connection error for $cleanEmail: $e',
+          level: LogLevel.error,
+          exception: e,
+          stackTrace: stack,
+        );
+      }
       throw Exception('BrevoDeliveryError');
     }
   }
