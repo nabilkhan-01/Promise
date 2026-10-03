@@ -52,8 +52,8 @@ class BrevoEmailService {
     final portVal =
         session.serverpod.getPassword('brevoSmtpPort') ??
         session.passwords['brevoSmtpPort'] ??
-        587;
-    final port = int.tryParse(portVal.toString()) ?? 587;
+        2525;
+    final port = int.tryParse(portVal.toString()) ?? 2525;
 
     final username =
         session.serverpod.getPassword('brevoSmtpUsername') ??
@@ -157,7 +157,7 @@ Promise Team
       host,
       port: port,
       ssl: false,
-      allowInsecure: true,
+      allowInsecure: false,
       username: username,
       password: smtpKey,
     );
