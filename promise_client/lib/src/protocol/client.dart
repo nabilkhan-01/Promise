@@ -18,6 +18,8 @@ import 'package:promise_client/src/protocol/friends/user_search_profile.dart'
     as _ihsmdl90;
 import 'package:promise_client/src/protocol/greetings/greeting.dart'
     as _izk3ljs4;
+import 'package:promise_client/src/protocol/notifications/app_notification.dart'
+    as _iim66qok;
 import 'package:promise_client/src/protocol/promises/promise.dart' as _izrd4uei;
 import 'package:promise_client/src/protocol/promises/promise_activity.dart'
     as _irwpjxuh;
@@ -301,6 +303,46 @@ class EndpointGreeting extends _isc.EndpointRef {
 }
 
 /// {@category Endpoint}
+class EndpointNotification extends _isc.EndpointRef {
+  EndpointNotification(_isc.EndpointCaller caller) : super(caller);
+
+  @override
+  String get name => 'notification';
+
+  /// Retrieves notifications for the current authenticated user.
+  _ida.Future<List<_iim66qok.AppNotification>> getNotifications({int? limit}) =>
+      caller.callServerEndpoint<List<_iim66qok.AppNotification>>(
+        'notification',
+        'getNotifications',
+        {'limit': limit},
+      );
+
+  /// Retrieves the unread notification count for current authenticated user.
+  _ida.Future<int> getUnreadNotificationCount() =>
+      caller.callServerEndpoint<int>(
+        'notification',
+        'getUnreadNotificationCount',
+        {},
+      );
+
+  /// Marks a single notification as read if it belongs to current authenticated user.
+  _ida.Future<_iim66qok.AppNotification?> markNotificationRead(
+    int notificationId,
+  ) => caller.callServerEndpoint<_iim66qok.AppNotification?>(
+    'notification',
+    'markNotificationRead',
+    {'notificationId': notificationId},
+  );
+
+  /// Marks all unread notifications as read for current authenticated user.
+  _ida.Future<int> markAllNotificationsRead() => caller.callServerEndpoint<int>(
+    'notification',
+    'markAllNotificationsRead',
+    {},
+  );
+}
+
+/// {@category Endpoint}
 class EndpointPromise extends _isc.EndpointRef {
   EndpointPromise(_isc.EndpointCaller caller) : super(caller);
 
@@ -440,6 +482,7 @@ class Client extends _isc.ServerpodClientShared {
     emailIdp = EndpointEmailIdp(this);
     friend = EndpointFriend(this);
     greeting = EndpointGreeting(this);
+    notification = EndpointNotification(this);
     promise = EndpointPromise(this);
     modules = Modules(this);
   }
@@ -452,6 +495,8 @@ class Client extends _isc.ServerpodClientShared {
 
   late final EndpointGreeting greeting;
 
+  late final EndpointNotification notification;
+
   late final EndpointPromise promise;
 
   late final Modules modules;
@@ -462,6 +507,7 @@ class Client extends _isc.ServerpodClientShared {
     'emailIdp': emailIdp,
     'friend': friend,
     'greeting': greeting,
+    'notification': notification,
     'promise': promise,
   };
 

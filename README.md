@@ -41,21 +41,36 @@ Promise solves this problem by turning everyday agreements into structured commi
 - **Friendship-Enforced Commitments:** Promises can only be created for accepted friends.
 - **Backend Authorization:** Friendship relationships and privacy rules are enforced on the server.
 
-### Promise Management
+### Promise Management & Tabbed Dashboard
 - **Create Promise:** Log new commitments specifying title, recipient friend, optional description, due date, and optional due time.
-- **PostgreSQL Persistence:** All promises, activities, and friendships are persisted in PostgreSQL via Serverpod ORM.
-- **Home Dashboard:** Clean Material 3 dashboard displaying active, pending, and completed commitments with pull-to-refresh.
+- **PostgreSQL Persistence:** All promises, activities, notifications, and friendships are persisted in PostgreSQL via Serverpod ORM.
+- **Tabbed Dashboard:** Clean Material 3 dashboard organized into two sections:
+  - **Current (`pending`, `in_progress`, `awaiting_confirmation`):** Sorted strictly by nearest due date and due time first.
+  - **Completed (`completed`):** Archived commitments sorted newest first.
+  - Live section counts (e.g. `Current (2)`, `Completed (4)`) and custom empty state messages (`No active promises yet.`, `No completed promises yet.`).
 - **Participant Authorization:** Serverpod backend verifies caller identity against creator and recipient IDs for all operations.
+
+### Persistent In-App Notification System
+- **Serverpod + PostgreSQL Notifications:** Full in-app notification engine with persistent database storage (`AppNotification`).
+- **Event-Driven Notifications:** Triggered automatically on key events:
+  - **Friends:** `friend_request`, `friend_request_accepted`
+  - **Promises:** `promise_created`, `promise_updated`, `promise_status_changed`, `change_requested`, `confirmation_requested`, `promise_completed`
+- **Dashboard Notification Bell:** App bar notification bell (`🔔`) featuring an unread count badge and periodic background refresh polling while active.
+- **`NotificationsScreen`:** Mobile-first screen grouped by `TODAY` and `EARLIER` with unread emphasis, type-specific visual icons, relative timestamps (`5m ago`), "Mark all as read", and tap-to-navigate directly to the referenced Promise or Friend Request.
+- **Authenticated Isolation:** Endpoint authorization ensures users can only read or update their own notifications.
 
 ### Activity Timeline & Status Tracking
 - **Chronological Timeline:** Log tracking creation events, progress updates, status changes, change requests, and completion confirmations.
 - **Progress Updates:** Participants can log updates with custom messages and individual activity statuses via the full-screen `AddUpdateScreen`.
 - **Independent Activity Statuses:** Activity progress statuses (`Pending`, `In Progress`, `Completed`) operate independently of the overall Promise status.
-- **Overall Promise Status Flow:**
-  ```text
-  Pending ──> In Progress ──> Awaiting Confirmation ──> Completed
-  ```
-- **Two-Party Completion Rule:**
+- **Responsive Status Progress Component:**
+  - Responsive visual progress control clearly displaying:
+    ```text
+    Pending ──> In Progress ──> Awaiting Confirmation ──> Completed
+    ```
+  - Adapts automatically to a horizontal step layout on wide screens and a vertical step-connected timeline on mobile portrait screens (< 480px), eliminating text wrapping on small displays.
+- **Two-Party Completion Rule & Role Awareness:**
+  - Explicit user role callout (`Your Role: Creator` / `Your Role: Recipient`).
   - First party confirmation transitions overall status to `Awaiting Confirmation`.
   - Second party confirmation transitions overall status to `Completed`.
 - **Terminal Completed State:** Once both parties confirm, a Promise enters `Completed` status and becomes strictly read-only. Further updates, confirmations, status changes, or change requests are permanently blocked.
@@ -277,7 +292,8 @@ dart analyze
 - [x] Serverpod server initialization and protocol generation.
 - [x] Disposable email validator unit tests (`disposable_email_validator_test.dart`).
 - [x] Email IDP endpoint integration tests (`email_idp_endpoint_test.dart`).
-- [x] Database migrations and model serialization tests (`11/11` tests passing).
+- [x] Notification endpoint integration tests (`notification_endpoint_test.dart`).
+- [x] Database migrations, model serialization, and user authorization tests (`14/14` tests passing).
 
 ### Static Analysis
 - [x] `promise_server`: Clean (`No issues found!`).

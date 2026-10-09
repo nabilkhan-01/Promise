@@ -1,0 +1,11 @@
+class: AppNotification
+table: app_notification
+fields:
+  userId: String
+  type: String
+  title: String
+  message: String
+  promiseId: int?
+  friendshipId: int?
+  createdAt: DateTime
+  readAt: DateTime?

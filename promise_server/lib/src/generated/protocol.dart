@@ -13,6 +13,8 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'package:promise_server/src/generated/friends/user_search_profile.dart'
     as _i36a1br3;
+import 'package:promise_server/src/generated/notifications/app_notification.dart'
+    as _iy76h3a0;
 import 'package:promise_server/src/generated/promises/promise.dart'
     as _ipgb4ryh;
 import 'package:promise_server/src/generated/promises/promise_activity.dart'
@@ -27,12 +29,14 @@ import 'auth/account_not_found_exception.dart' as _i12ji7k4;
 import 'friends/friendship.dart' as _ix1l50pg;
 import 'friends/user_search_profile.dart' as _i6kf6063;
 import 'greetings/greeting.dart' as _izw8z7ou;
+import 'notifications/app_notification.dart' as _ih0s0cfq;
 import 'promises/promise.dart' as _i9knynp5;
 import 'promises/promise_activity.dart' as _itvtbfbt;
 export 'auth/account_not_found_exception.dart';
 export 'friends/friendship.dart';
 export 'friends/user_search_profile.dart';
 export 'greetings/greeting.dart';
+export 'notifications/app_notification.dart';
 export 'promises/promise.dart';
 export 'promises/promise_activity.dart';
 
@@ -44,6 +48,72 @@ class Protocol extends _is.DatabaseSerializationManager {
   static final Protocol _instance = Protocol._().._registerHostProtocols();
 
   static List<_isp.TableDefinition> get targetTableDefinitions => [
+    _isp.TableDefinition(
+      name: 'app_notification',
+      dartName: 'AppNotification',
+      schema: 'public',
+      module: 'promise',
+      columns: [
+        _isp.ColumnDefinition(
+          name: 'id',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: false,
+          dartType: 'int?',
+          columnDefault: 'serial',
+        ),
+        _isp.ColumnDefinition(
+          name: 'userId',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+        ),
+        _isp.ColumnDefinition(
+          name: 'type',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+        ),
+        _isp.ColumnDefinition(
+          name: 'title',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+        ),
+        _isp.ColumnDefinition(
+          name: 'message',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+        ),
+        _isp.ColumnDefinition(
+          name: 'promiseId',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: true,
+          dartType: 'int?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'friendshipId',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: true,
+          dartType: 'int?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'createdAt',
+          columnType: _isp.ColumnType.timestampWithoutTimeZone,
+          isNullable: false,
+          dartType: 'DateTime',
+        ),
+        _isp.ColumnDefinition(
+          name: 'readAt',
+          columnType: _isp.ColumnType.timestampWithoutTimeZone,
+          isNullable: true,
+          dartType: 'DateTime?',
+        ),
+      ],
+      foreignKeys: [],
+      indexes: [],
+      managed: true,
+    ),
     _isp.TableDefinition(
       name: 'friendship',
       dartName: 'Friendship',
@@ -281,6 +351,9 @@ class Protocol extends _is.DatabaseSerializationManager {
     if (t == _izw8z7ou.Greeting) {
       return _izw8z7ou.Greeting.fromJson(data) as T;
     }
+    if (t == _ih0s0cfq.AppNotification) {
+      return _ih0s0cfq.AppNotification.fromJson(data) as T;
+    }
     if (t == _i9knynp5.Promise) {
       return _i9knynp5.Promise.fromJson(data) as T;
     }
@@ -303,6 +376,10 @@ class Protocol extends _is.DatabaseSerializationManager {
     if (t == _is.getType<_izw8z7ou.Greeting?>()) {
       return (data != null ? _izw8z7ou.Greeting.fromJson(data) : null) as T;
     }
+    if (t == _is.getType<_ih0s0cfq.AppNotification?>()) {
+      return (data != null ? _ih0s0cfq.AppNotification.fromJson(data) : null)
+          as T;
+    }
     if (t == _is.getType<_i9knynp5.Promise?>()) {
       return (data != null ? _i9knynp5.Promise.fromJson(data) : null) as T;
     }
@@ -313,6 +390,12 @@ class Protocol extends _is.DatabaseSerializationManager {
     if (t == List<_i36a1br3.UserSearchProfile>) {
       return (data as List)
               .map((e) => deserialize<_i36a1br3.UserSearchProfile>(e))
+              .toList()
+          as T;
+    }
+    if (t == List<_iy76h3a0.AppNotification>) {
+      return (data as List)
+              .map((e) => deserialize<_iy76h3a0.AppNotification>(e))
               .toList()
           as T;
     }
@@ -346,6 +429,7 @@ class Protocol extends _is.DatabaseSerializationManager {
       _ix1l50pg.Friendship => 'Friendship',
       _i6kf6063.UserSearchProfile => 'UserSearchProfile',
       _izw8z7ou.Greeting => 'Greeting',
+      _ih0s0cfq.AppNotification => 'AppNotification',
       _i9knynp5.Promise => 'Promise',
       _itvtbfbt.PromiseActivity => 'PromiseActivity',
       _ => null,
@@ -370,6 +454,8 @@ class Protocol extends _is.DatabaseSerializationManager {
         return 'UserSearchProfile';
       case _izw8z7ou.Greeting():
         return 'Greeting';
+      case _ih0s0cfq.AppNotification():
+        return 'AppNotification';
       case _i9knynp5.Promise():
         return 'Promise';
       case _itvtbfbt.PromiseActivity():
@@ -411,6 +497,9 @@ class Protocol extends _is.DatabaseSerializationManager {
     }
     if (dataClassName == 'Greeting') {
       return deserialize<_izw8z7ou.Greeting>(data['data']);
+    }
+    if (dataClassName == 'AppNotification') {
+      return deserialize<_ih0s0cfq.AppNotification>(data['data']);
     }
     if (dataClassName == 'Promise') {
       return deserialize<_i9knynp5.Promise>(data['data']);
@@ -461,6 +550,8 @@ class Protocol extends _is.DatabaseSerializationManager {
     switch (t) {
       case _ix1l50pg.Friendship:
         return _ix1l50pg.Friendship.t;
+      case _ih0s0cfq.AppNotification:
+        return _ih0s0cfq.AppNotification.t;
       case _i9knynp5.Promise:
         return _i9knynp5.Promise.t;
       case _itvtbfbt.PromiseActivity:

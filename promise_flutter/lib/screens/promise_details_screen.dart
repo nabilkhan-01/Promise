@@ -490,7 +490,7 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
                       const Divider(),
                       const SizedBox(height: 12),
 
-                      // Interactive Overall Promise Status Control
+                      // Responsive Promise Status Progression
                       Text(
                         'Overall Promise Status',
                         style: theme.textTheme.titleSmall?.copyWith(
@@ -498,43 +498,15 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      SizedBox(
-                        width: double.infinity,
-                        child: SegmentedButton<String>(
-                          segments: [
-                            const ButtonSegment<String>(
-                              value: 'pending',
-                              label: Text('Pending'),
-                            ),
-                            const ButtonSegment<String>(
-                              value: 'in_progress',
-                              label: Text('In Progress'),
-                            ),
-                            if (_currentPromise.status ==
-                                'awaiting_confirmation')
-                              const ButtonSegment<String>(
-                                value: 'awaiting_confirmation',
-                                label: Text('Awaiting Conf.'),
-                                enabled: false,
-                              ),
-                            ButtonSegment<String>(
-                              value: 'completed',
-                              label: const Text('Completed'),
-                              enabled: isBothConfirmed,
-                            ),
-                          ],
-                          selected: {_currentPromise.status},
-                          onSelectionChanged: (_isUpdatingStatus || isCompleted)
-                              ? null
-                              : (newSelection) {
-                                  if (newSelection.isNotEmpty) {
-                                    final selected = newSelection.first;
-                                    if (selected != 'awaiting_confirmation') {
-                                      _changeOverallStatus(selected);
-                                    }
-                                  }
-                                },
-                        ),
+                      PromiseStatusProgressWidget(
+                        currentStatus: _currentPromise.status,
+                        isBothConfirmed: isBothConfirmed,
+                        isUpdatingStatus: _isUpdatingStatus,
+                        onStatusSelected: (selectedStatus) {
+                          if (selectedStatus != 'awaiting_confirmation') {
+                            _changeOverallStatus(selectedStatus);
+                          }
+                        },
                       ),
 
                       if (isCompleted) ...[
@@ -605,114 +577,32 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Creator Confirmation Row
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                _currentPromise.creatorConfirmed
-                                    ? Icons.check_circle
-                                    : Icons.hourglass_empty_outlined,
-                                color: _currentPromise.creatorConfirmed
-                                    ? Colors.green
-                                    : colorScheme.onSurfaceVariant,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Creator:',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                _currentPromise.creatorConfirmed
-                                    ? 'Confirmed'
-                                    : 'Awaiting',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: _currentPromise.creatorConfirmed
-                                      ? Colors.green
-                                      : colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (!_currentPromise.creatorConfirmed)
-                            FilledButton.tonal(
-                              onPressed:
-                                  (_isUpdatingStatus ||
-                                      isCompleted ||
-                                      !isUserCreator)
-                                  ? null
-                                  : () => _confirmCompletion('creator'),
-                              child: const Text('Confirm (Creator)'),
-                            )
-                          else
-                            const Chip(
-                              label: Text('✓ Confirmed'),
-                              visualDensity: VisualDensity.compact,
-                            ),
-                        ],
+                      // Creator Confirmation Item
+                      _buildConfirmationItem(
+                        title: 'Creator',
+                        isConfirmed: _currentPromise.creatorConfirmed,
+                        canConfirm:
+                            !isCompleted && !_isUpdatingStatus && isUserCreator,
+                        onConfirm: () => _confirmCompletion('creator'),
+                        theme: theme,
+                        colorScheme: colorScheme,
                       ),
 
                       const SizedBox(height: 12),
                       const Divider(height: 1),
                       const SizedBox(height: 12),
 
-                      // Recipient Confirmation Row
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                _currentPromise.recipientConfirmed
-                                    ? Icons.check_circle
-                                    : Icons.hourglass_empty_outlined,
-                                color: _currentPromise.recipientConfirmed
-                                    ? Colors.green
-                                    : colorScheme.onSurfaceVariant,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Recipient:',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                _currentPromise.recipientConfirmed
-                                    ? 'Confirmed'
-                                    : 'Awaiting',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: _currentPromise.recipientConfirmed
-                                      ? Colors.green
-                                      : colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (!_currentPromise.recipientConfirmed)
-                            FilledButton.tonal(
-                              onPressed:
-                                  (_isUpdatingStatus ||
-                                      isCompleted ||
-                                      !isUserRecipient)
-                                  ? null
-                                  : () => _confirmCompletion('recipient'),
-                              child: const Text('Confirm (Recipient)'),
-                            )
-                          else
-                            const Chip(
-                              label: Text('✓ Confirmed'),
-                              visualDensity: VisualDensity.compact,
-                            ),
-                        ],
+                      // Recipient Confirmation Item
+                      _buildConfirmationItem(
+                        title: 'Recipient',
+                        isConfirmed: _currentPromise.recipientConfirmed,
+                        canConfirm:
+                            !isCompleted &&
+                            !_isUpdatingStatus &&
+                            isUserRecipient,
+                        onConfirm: () => _confirmCompletion('recipient'),
+                        theme: theme,
+                        colorScheme: colorScheme,
                       ),
 
                       if (!isCompleted) ...[
@@ -933,4 +823,433 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
       }),
     );
   }
+
+  Widget _buildConfirmationItem({
+    required String title,
+    required bool isConfirmed,
+    required bool canConfirm,
+    required VoidCallback onConfirm,
+    required ThemeData theme,
+    required ColorScheme colorScheme,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 340;
+        final infoRow = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isConfirmed ? Icons.check_circle : Icons.hourglass_empty_outlined,
+              color: isConfirmed ? Colors.green : colorScheme.onSurfaceVariant,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '$title: ',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              isConfirmed ? 'Confirmed' : 'Awaiting',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: isConfirmed
+                    ? Colors.green
+                    : colorScheme.onSurfaceVariant,
+                fontWeight: isConfirmed ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
+        );
+
+        final actionWidget = isConfirmed
+            ? Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '✓ Confirmed',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: Colors.green.shade800,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              )
+            : FilledButton.tonal(
+                onPressed: canConfirm ? onConfirm : null,
+                style: FilledButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                ),
+                child: Text('Confirm ($title)'),
+              );
+
+        if (isNarrow) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              infoRow,
+              const SizedBox(height: 8),
+              SizedBox(width: double.infinity, child: actionWidget),
+            ],
+          );
+        }
+
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            infoRow,
+            actionWidget,
+          ],
+        );
+      },
+    );
+  }
+}
+
+class PromiseStatusProgressWidget extends StatelessWidget {
+  final String currentStatus;
+  final bool isBothConfirmed;
+  final bool isUpdatingStatus;
+  final ValueChanged<String> onStatusSelected;
+
+  const PromiseStatusProgressWidget({
+    super.key,
+    required this.currentStatus,
+    required this.isBothConfirmed,
+    required this.isUpdatingStatus,
+    required this.onStatusSelected,
+  });
+
+  int get _currentIndex {
+    switch (currentStatus.toLowerCase()) {
+      case 'completed':
+        return 3;
+      case 'awaiting_confirmation':
+        return 2;
+      case 'in_progress':
+        return 1;
+      case 'pending':
+      default:
+        return 0;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= 480) {
+          return _buildHorizontalLayout(context);
+        } else {
+          return _buildVerticalLayout(context);
+        }
+      },
+    );
+  }
+
+  Widget _buildHorizontalLayout(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isCompleted = currentStatus.toLowerCase() == 'completed';
+
+    final steps = [
+      _StepData('pending', 'Pending', Icons.hourglass_top_outlined),
+      _StepData('in_progress', 'In Progress', Icons.run_circle_outlined),
+      _StepData(
+        'awaiting_confirmation',
+        'Awaiting Conf.',
+        Icons.fact_check_outlined,
+      ),
+      _StepData('completed', 'Completed', Icons.check_circle_outlined),
+    ];
+
+    final currentIndex = _currentIndex;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: List.generate(steps.length, (index) {
+          final step = steps[index];
+          final isCurrent = index == currentIndex;
+          final isPast = index < currentIndex;
+          final isClickable =
+              !isCompleted &&
+              !isUpdatingStatus &&
+              (step.key == 'pending' ||
+                  step.key == 'in_progress' ||
+                  (step.key == 'completed' && isBothConfirmed));
+
+          Color circleColor;
+          Color textColor;
+          if (isCurrent) {
+            circleColor = isCompleted ? Colors.green : colorScheme.primary;
+            textColor = isCompleted
+                ? Colors.green.shade800
+                : colorScheme.primary;
+          } else if (isPast) {
+            circleColor = Colors.green;
+            textColor = colorScheme.onSurface;
+          } else {
+            circleColor = colorScheme.outlineVariant;
+            textColor = colorScheme.onSurfaceVariant;
+          }
+
+          return Expanded(
+            child: InkWell(
+              onTap: isClickable ? () => onStatusSelected(step.key) : null,
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        if (index > 0)
+                          Expanded(
+                            child: Container(
+                              height: 2,
+                              color: isPast || isCurrent
+                                  ? Colors.green
+                                  : colorScheme.outlineVariant,
+                            ),
+                          ),
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: isCurrent
+                                ? circleColor
+                                : (isPast
+                                      ? Colors.green.withValues(alpha: 0.2)
+                                      : colorScheme.surface),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: circleColor,
+                              width: isCurrent ? 2 : 1,
+                            ),
+                          ),
+                          child: Icon(
+                            isPast ? Icons.check : step.icon,
+                            size: 16,
+                            color: isCurrent
+                                ? Colors.white
+                                : (isPast
+                                      ? Colors.green.shade800
+                                      : colorScheme.onSurfaceVariant),
+                          ),
+                        ),
+                        if (index < steps.length - 1)
+                          Expanded(
+                            child: Container(
+                              height: 2,
+                              color: isPast
+                                  ? Colors.green
+                                  : colorScheme.outlineVariant,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      step.label,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: textColor,
+                        fontWeight: isCurrent
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        fontSize: 11,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildVerticalLayout(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isCompleted = currentStatus.toLowerCase() == 'completed';
+
+    final steps = [
+      _StepData('pending', 'Pending', Icons.hourglass_top_outlined),
+      _StepData('in_progress', 'In Progress', Icons.run_circle_outlined),
+      _StepData(
+        'awaiting_confirmation',
+        'Awaiting Confirmation',
+        Icons.fact_check_outlined,
+      ),
+      _StepData('completed', 'Completed', Icons.check_circle_outlined),
+    ];
+
+    final currentIndex = _currentIndex;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        children: List.generate(steps.length, (index) {
+          final step = steps[index];
+          final isCurrent = index == currentIndex;
+          final isPast = index < currentIndex;
+          final isLast = index == steps.length - 1;
+
+          final isClickable =
+              !isCompleted &&
+              !isUpdatingStatus &&
+              (step.key == 'pending' ||
+                  step.key == 'in_progress' ||
+                  (step.key == 'completed' && isBothConfirmed));
+
+          Color stepColor;
+          if (isCurrent) {
+            stepColor = isCompleted ? Colors.green : colorScheme.primary;
+          } else if (isPast) {
+            stepColor = Colors.green;
+          } else {
+            stepColor = colorScheme.outlineVariant;
+          }
+
+          return InkWell(
+            onTap: isClickable ? () => onStatusSelected(step.key) : null,
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Indicator Circle + Vertical Connector Line
+                    SizedBox(
+                      width: 36,
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: isCurrent
+                                  ? stepColor
+                                  : (isPast
+                                        ? Colors.green.withValues(alpha: 0.15)
+                                        : colorScheme.surfaceContainerHighest
+                                              .withValues(alpha: 0.4)),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: stepColor,
+                                width: isCurrent ? 2.5 : 1.5,
+                              ),
+                            ),
+                            child: Icon(
+                              isPast ? Icons.check : step.icon,
+                              size: 16,
+                              color: isCurrent
+                                  ? Colors.white
+                                  : (isPast
+                                        ? Colors.green.shade800
+                                        : colorScheme.onSurfaceVariant),
+                            ),
+                          ),
+                          if (!isLast)
+                            Expanded(
+                              child: Container(
+                                width: 2,
+                                margin: const EdgeInsets.symmetric(vertical: 2),
+                                color: isPast
+                                    ? Colors.green
+                                    : colorScheme.outlineVariant,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+
+                    // Label & Status Tag
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                step.label,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: isCurrent
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                  color: isCurrent
+                                      ? (isCompleted
+                                            ? Colors.green.shade800
+                                            : colorScheme.primary)
+                                      : colorScheme.onSurface,
+                                ),
+                              ),
+                            ),
+                            if (isCurrent) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: stepColor.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  'CURRENT',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: stepColor,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 9,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    if (isClickable)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: Icon(
+                          Icons.touch_app_outlined,
+                          size: 18,
+                          color: colorScheme.primary.withValues(alpha: 0.7),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+}
+
+class _StepData {
+  final String key;
+  final String label;
+  final IconData icon;
+
+  _StepData(this.key, this.label, this.icon);
 }

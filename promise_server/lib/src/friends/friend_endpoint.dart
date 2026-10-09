@@ -1,6 +1,7 @@
 import 'package:serverpod/serverpod.dart';
 import 'package:serverpod_auth_idp_server/core.dart';
 import '../generated/protocol.dart';
+import '../notifications/notification_helper.dart';
 
 class FriendEndpoint extends Endpoint {
   @override
@@ -117,6 +118,14 @@ class FriendEndpoint extends Endpoint {
       throw ArgumentError('Target user not found.');
     }
 
+    final senderProfile = await _getProfileByAuthUserId(
+      session,
+      senderUserId,
+    );
+    final senderName = senderProfile?.userName?.trim().isNotEmpty == true
+        ? senderProfile!.userName!
+        : (senderProfile?.email ?? 'Someone');
+
     final existing = await Friendship.db.findFirstRow(
       session,
       where: (t) =>
@@ -126,6 +135,7 @@ class FriendEndpoint extends Endpoint {
               t.receiverUserId.equals(senderUserId)),
     );
 
+    Friendship saved;
     if (existing != null) {
       if (existing.status == 'accepted') {
         throw ArgumentError('You are already friends with this user.');
@@ -140,17 +150,29 @@ class FriendEndpoint extends Endpoint {
         status: 'pending',
         updatedAt: DateTime.now().toUtc(),
       );
-      return await Friendship.db.updateRow(session, updated);
+      saved = await Friendship.db.updateRow(session, updated);
+    } else {
+      final newFriendship = Friendship(
+        senderUserId: senderUserId,
+        receiverUserId: cleanReceiverId,
+        status: 'pending',
+        createdAt: DateTime.now().toUtc(),
+      );
+      saved = await Friendship.db.insertRow(session, newFriendship);
     }
 
-    final newFriendship = Friendship(
-      senderUserId: senderUserId,
-      receiverUserId: cleanReceiverId,
-      status: 'pending',
-      createdAt: DateTime.now().toUtc(),
-    );
+    try {
+      await NotificationHelper.createNotification(
+        session,
+        userId: cleanReceiverId,
+        type: 'friend_request',
+        title: 'New Friend Request',
+        message: '$senderName sent you a friend request.',
+        friendshipId: saved.id,
+      );
+    } catch (_) {}
 
-    return await Friendship.db.insertRow(session, newFriendship);
+    return saved;
   }
 
   /// Retrieves pending friend requests sent TO the current authenticated user.
@@ -213,7 +235,28 @@ class FriendEndpoint extends Endpoint {
       updatedAt: DateTime.now().toUtc(),
     );
 
-    return await Friendship.db.updateRow(session, updated);
+    final saved = await Friendship.db.updateRow(session, updated);
+
+    try {
+      final receiverProfile = await _getProfileByAuthUserId(
+        session,
+        currentUserId,
+      );
+      final receiverName = receiverProfile?.userName?.trim().isNotEmpty == true
+          ? receiverProfile!.userName!
+          : (receiverProfile?.email ?? 'Someone');
+
+      await NotificationHelper.createNotification(
+        session,
+        userId: friendship.senderUserId,
+        type: 'friend_request_accepted',
+        title: 'Friend Request Accepted',
+        message: '$receiverName accepted your friend request.',
+        friendshipId: friendship.id,
+      );
+    } catch (_) {}
+
+    return saved;
   }
 
   /// Rejects an incoming friend request.

@@ -21,6 +21,7 @@ import '../auth/jwt_refresh_endpoint.dart' as _inwq3ztq;
 import '../endpoints/email_idp_endpoint.dart' as _ilutrrxn;
 import '../friends/friend_endpoint.dart' as _ib9qa24p;
 import '../greetings/greeting_endpoint.dart' as _il624ik7;
+import '../notifications/notification_endpoint.dart' as _ibyw8x7k;
 import '../promises/promise_endpoint.dart' as _itrz4nk3;
 
 class Endpoints extends _is.EndpointDispatch {
@@ -49,6 +50,12 @@ class Endpoints extends _is.EndpointDispatch {
         ..initialize(
           server,
           'greeting',
+          null,
+        ),
+      'notification': _ibyw8x7k.NotificationEndpoint()
+        ..initialize(
+          server,
+          'notification',
           null,
         ),
       'promise': _itrz4nk3.PromiseEndpoint()
@@ -407,6 +414,74 @@ class Endpoints extends _is.EndpointDispatch {
                     session,
                     params['name'],
                   ),
+        ),
+      },
+    );
+    connectors['notification'] = _is.EndpointConnector(
+      name: 'notification',
+      endpoint: endpoints['notification']!,
+      methodConnectors: {
+        'getNotifications': _is.MethodConnector(
+          name: 'getNotifications',
+          params: {
+            'limit': _is.ParameterDescription(
+              name: 'limit',
+              type: _is.getType<int?>(),
+              nullable: true,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['notification'] as _ibyw8x7k.NotificationEndpoint)
+                      .getNotifications(
+                        session,
+                        limit: params['limit'],
+                      ),
+        ),
+        'getUnreadNotificationCount': _is.MethodConnector(
+          name: 'getUnreadNotificationCount',
+          params: {},
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['notification'] as _ibyw8x7k.NotificationEndpoint)
+                      .getUnreadNotificationCount(session),
+        ),
+        'markNotificationRead': _is.MethodConnector(
+          name: 'markNotificationRead',
+          params: {
+            'notificationId': _is.ParameterDescription(
+              name: 'notificationId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['notification'] as _ibyw8x7k.NotificationEndpoint)
+                      .markNotificationRead(
+                        session,
+                        params['notificationId'],
+                      ),
+        ),
+        'markAllNotificationsRead': _is.MethodConnector(
+          name: 'markAllNotificationsRead',
+          params: {},
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['notification'] as _ibyw8x7k.NotificationEndpoint)
+                      .markAllNotificationsRead(session),
         ),
       },
     );

@@ -13,6 +13,8 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'package:promise_client/src/protocol/friends/user_search_profile.dart'
     as _ihsmdl90;
+import 'package:promise_client/src/protocol/notifications/app_notification.dart'
+    as _iim66qok;
 import 'package:promise_client/src/protocol/promises/promise.dart' as _izrd4uei;
 import 'package:promise_client/src/protocol/promises/promise_activity.dart'
     as _irwpjxuh;
@@ -25,12 +27,14 @@ import 'auth/account_not_found_exception.dart' as _i12ji7k4;
 import 'friends/friendship.dart' as _ix1l50pg;
 import 'friends/user_search_profile.dart' as _i6kf6063;
 import 'greetings/greeting.dart' as _izw8z7ou;
+import 'notifications/app_notification.dart' as _ih0s0cfq;
 import 'promises/promise.dart' as _i9knynp5;
 import 'promises/promise_activity.dart' as _itvtbfbt;
 export 'auth/account_not_found_exception.dart';
 export 'friends/friendship.dart';
 export 'friends/user_search_profile.dart';
 export 'greetings/greeting.dart';
+export 'notifications/app_notification.dart';
 export 'promises/promise.dart';
 export 'promises/promise_activity.dart';
 export 'client.dart';
@@ -81,6 +85,9 @@ class Protocol extends _isc.SerializationManager {
     if (t == _izw8z7ou.Greeting) {
       return _izw8z7ou.Greeting.fromJson(data) as T;
     }
+    if (t == _ih0s0cfq.AppNotification) {
+      return _ih0s0cfq.AppNotification.fromJson(data) as T;
+    }
     if (t == _i9knynp5.Promise) {
       return _i9knynp5.Promise.fromJson(data) as T;
     }
@@ -103,6 +110,10 @@ class Protocol extends _isc.SerializationManager {
     if (t == _isc.getType<_izw8z7ou.Greeting?>()) {
       return (data != null ? _izw8z7ou.Greeting.fromJson(data) : null) as T;
     }
+    if (t == _isc.getType<_ih0s0cfq.AppNotification?>()) {
+      return (data != null ? _ih0s0cfq.AppNotification.fromJson(data) : null)
+          as T;
+    }
     if (t == _isc.getType<_i9knynp5.Promise?>()) {
       return (data != null ? _i9knynp5.Promise.fromJson(data) : null) as T;
     }
@@ -113,6 +124,12 @@ class Protocol extends _isc.SerializationManager {
     if (t == List<_ihsmdl90.UserSearchProfile>) {
       return (data as List)
               .map((e) => deserialize<_ihsmdl90.UserSearchProfile>(e))
+              .toList()
+          as T;
+    }
+    if (t == List<_iim66qok.AppNotification>) {
+      return (data as List)
+              .map((e) => deserialize<_iim66qok.AppNotification>(e))
               .toList()
           as T;
     }
@@ -143,6 +160,7 @@ class Protocol extends _isc.SerializationManager {
       _ix1l50pg.Friendship => 'Friendship',
       _i6kf6063.UserSearchProfile => 'UserSearchProfile',
       _izw8z7ou.Greeting => 'Greeting',
+      _ih0s0cfq.AppNotification => 'AppNotification',
       _i9knynp5.Promise => 'Promise',
       _itvtbfbt.PromiseActivity => 'PromiseActivity',
       _ => null,
@@ -167,6 +185,8 @@ class Protocol extends _isc.SerializationManager {
         return 'UserSearchProfile';
       case _izw8z7ou.Greeting():
         return 'Greeting';
+      case _ih0s0cfq.AppNotification():
+        return 'AppNotification';
       case _i9knynp5.Promise():
         return 'Promise';
       case _itvtbfbt.PromiseActivity():
@@ -204,6 +224,9 @@ class Protocol extends _isc.SerializationManager {
     }
     if (dataClassName == 'Greeting') {
       return deserialize<_izw8z7ou.Greeting>(data['data']);
+    }
+    if (dataClassName == 'AppNotification') {
+      return deserialize<_ih0s0cfq.AppNotification>(data['data']);
     }
     if (dataClassName == 'Promise') {
       return deserialize<_i9knynp5.Promise>(data['data']);

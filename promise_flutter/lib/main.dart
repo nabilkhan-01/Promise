@@ -6,6 +6,7 @@ import 'package:serverpod_auth_idp_flutter/serverpod_auth_idp_flutter.dart';
 import 'client.dart';
 import 'screens/create_promise_screen.dart';
 import 'screens/friends_screen.dart';
+import 'screens/notifications_screen.dart';
 import 'screens/promise_preparation_screen.dart';
 import 'screens/sign_in_screen.dart';
 
@@ -222,15 +223,52 @@ class PromiseHomePage extends StatefulWidget {
   State<PromiseHomePage> createState() => _PromiseHomePageState();
 }
 
-class _PromiseHomePageState extends State<PromiseHomePage> {
+class _PromiseHomePageState extends State<PromiseHomePage>
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+  late TabController _tabController;
   List<Promise> _promises = [];
+  int _unreadNotificationCount = 0;
+  bool _hasPendingFriends = false;
   bool _isLoading = true;
   String? _errorMessage;
+  Timer? _pollingTimer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _tabController = TabController(length: 2, vsync: this);
+    _loadAllData();
+    _startPolling();
+  }
+
+  void _startPolling() {
+    _pollingTimer?.cancel();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) {
+        _loadCounts();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _pollingTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadAllData();
+    }
+  }
+
+  Future<void> _loadAllData() async {
     _loadPromises();
+    _loadCounts();
   }
 
   Future<void> _loadPromises() async {
@@ -256,8 +294,56 @@ class _PromiseHomePageState extends State<PromiseHomePage> {
     }
   }
 
+  Future<void> _loadCounts() async {
+    try {
+      final unreadCount = await client.notification
+          .getUnreadNotificationCount();
+      final pendingFriends = await client.friend.getPendingFriendRequests();
+      if (!mounted) return;
+      setState(() {
+        _unreadNotificationCount = unreadCount;
+        _hasPendingFriends = pendingFriends.isNotEmpty;
+      });
+    } catch (_) {}
+  }
+
+  List<Promise> get _currentPromises {
+    final list = _promises.where((p) {
+      final s = p.status.toLowerCase();
+      return s == 'pending' ||
+          s == 'in_progress' ||
+          s == 'awaiting_confirmation';
+    }).toList();
+    list.sort((a, b) {
+      final aDue = a.dueTime ?? a.dueDate;
+      final bDue = b.dueTime ?? b.dueDate;
+      return aDue.compareTo(bDue);
+    });
+    return list;
+  }
+
+  List<Promise> get _completedPromises {
+    final list = _promises
+        .where((p) => p.status.toLowerCase() == 'completed')
+        .toList();
+    list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return list;
+  }
+
   Future<void> _signOut() async {
     await client.auth.signOutAllDevices();
+  }
+
+  Future<void> _openNotificationsScreen() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const NotificationsScreen(),
+      ),
+    );
+    if (mounted) {
+      _loadAllData();
+    }
   }
 
   Future<void> _openFriendsScreen() async {
@@ -268,7 +354,7 @@ class _PromiseHomePageState extends State<PromiseHomePage> {
       ),
     );
     if (mounted) {
-      _loadPromises();
+      _loadAllData();
     }
   }
 
@@ -291,7 +377,7 @@ class _PromiseHomePageState extends State<PromiseHomePage> {
         ),
       );
       if (updated == true && mounted) {
-        _loadPromises();
+        _loadAllData();
       }
     }
   }
@@ -307,13 +393,15 @@ class _PromiseHomePageState extends State<PromiseHomePage> {
     );
 
     if (updated == true && mounted) {
-      _loadPromises();
+      _loadAllData();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final currentList = _currentPromises;
+    final completedList = _completedPromises;
 
     return Scaffold(
       appBar: AppBar(
@@ -325,10 +413,63 @@ class _PromiseHomePageState extends State<PromiseHomePage> {
         ),
         centerTitle: false,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.people_outlined),
-            tooltip: 'Friends',
-            onPressed: _openFriendsScreen,
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_outlined),
+                tooltip: 'Notifications',
+                onPressed: _openNotificationsScreen,
+              ),
+              if (_unreadNotificationCount > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      _unreadNotificationCount > 99
+                          ? '99+'
+                          : '$_unreadNotificationCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.people_outlined),
+                tooltip: 'Friends',
+                onPressed: _openFriendsScreen,
+              ),
+              if (_hasPendingFriends)
+                Positioned(
+                  right: 10,
+                  top: 10,
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
           ),
           IconButton(
             icon: const Icon(Icons.logout_outlined),
@@ -336,8 +477,15 @@ class _PromiseHomePageState extends State<PromiseHomePage> {
             onPressed: _signOut,
           ),
         ],
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: [
+            Tab(text: 'Current (${currentList.length})'),
+            Tab(text: 'Completed (${completedList.length})'),
+          ],
+        ),
       ),
-      body: _buildBody(theme),
+      body: _buildBody(theme, currentList, completedList),
       floatingActionButton: FloatingActionButton(
         onPressed: _navigateToCreatePromise,
         child: const Icon(Icons.add),
@@ -345,7 +493,11 @@ class _PromiseHomePageState extends State<PromiseHomePage> {
     );
   }
 
-  Widget _buildBody(ThemeData theme) {
+  Widget _buildBody(
+    ThemeData theme,
+    List<Promise> currentList,
+    List<Promise> completedList,
+  ) {
     if (_isLoading) {
       return const Center(
         child: Column(
@@ -386,7 +538,7 @@ class _PromiseHomePageState extends State<PromiseHomePage> {
               ),
               const SizedBox(height: 24),
               ElevatedButton.icon(
-                onPressed: _loadPromises,
+                onPressed: _loadAllData,
                 icon: const Icon(Icons.refresh),
                 label: const Text('Try Again'),
               ),
@@ -396,48 +548,71 @@ class _PromiseHomePageState extends State<PromiseHomePage> {
       );
     }
 
-    if (_promises.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Your commitments',
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+    return TabBarView(
+      controller: _tabController,
+      children: [
+        _buildPromiseList(
+          promises: currentList,
+          emptyTitle: 'No active promises yet.',
+          emptySubtitle:
+              'Create your first promise and keep track of your commitments.',
+          theme: theme,
+          showCreateButton: true,
+        ),
+        _buildPromiseList(
+          promises: completedList,
+          emptyTitle: 'No completed promises yet.',
+          emptySubtitle:
+              'Completed promises will appear here after mutual confirmation.',
+          theme: theme,
+          showCreateButton: false,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPromiseList({
+    required List<Promise> promises,
+    required String emptyTitle,
+    required String emptySubtitle,
+    required ThemeData theme,
+    required bool showCreateButton,
+  }) {
+    if (promises.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: _loadAllData,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Container(
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height * 0.65,
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Keep promises clear, trackable, and documented.',
-              style: theme.textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 32),
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.handshake_outlined,
-                      size: 72,
-                      color: theme.colorScheme.primary,
+            padding: const EdgeInsets.all(24),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.handshake_outlined,
+                    size: 64,
+                    color: theme.colorScheme.primary.withValues(alpha: 0.7),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    emptyTitle,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
                     ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'No promises yet',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    emptySubtitle,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Create your first promise and start\n'
-                      'tracking it from start to finish.',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyMedium,
-                    ),
+                  ),
+                  if (showCreateButton) ...[
                     const SizedBox(height: 24),
                     FilledButton.icon(
                       onPressed: _navigateToCreatePromise,
@@ -445,43 +620,21 @@ class _PromiseHomePageState extends State<PromiseHomePage> {
                       label: const Text('Create Promise'),
                     ),
                   ],
-                ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       );
     }
 
     return RefreshIndicator(
-      onRefresh: _loadPromises,
+      onRefresh: _loadAllData,
       child: ListView.builder(
-        padding: const EdgeInsets.all(20),
-        itemCount: _promises.length + 1,
+        padding: const EdgeInsets.all(16),
+        itemCount: promises.length,
         itemBuilder: (context, index) {
-          if (index == 0) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Your commitments',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Keep promises clear, trackable, and documented.',
-                    style: theme.textTheme.bodyLarge,
-                  ),
-                ],
-              ),
-            );
-          }
-
-          final promise = _promises[index - 1];
+          final promise = promises[index];
           return PromiseCard(
             promise: promise,
             onTap: () => _openPromiseDetails(promise),
@@ -545,17 +698,17 @@ class PromiseCard extends StatelessWidget {
 
     switch (promise.status.toLowerCase()) {
       case 'completed':
-        statusBgColor = Colors.green.withAlpha(38);
+        statusBgColor = Colors.green.withValues(alpha: 0.15);
         statusTextColor = Colors.green.shade800;
         statusLabel = 'Completed';
         break;
       case 'awaiting_confirmation':
-        statusBgColor = Colors.amber.withAlpha(45);
+        statusBgColor = Colors.amber.withValues(alpha: 0.18);
         statusTextColor = Colors.amber.shade900;
         statusLabel = 'Awaiting Conf.';
         break;
       case 'in_progress':
-        statusBgColor = Colors.orange.withAlpha(38);
+        statusBgColor = Colors.orange.withValues(alpha: 0.15);
         statusTextColor = Colors.orange.shade800;
         statusLabel = 'In Progress';
         break;

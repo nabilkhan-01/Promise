@@ -19,6 +19,11 @@ friend:
   - removeFriend:
 greeting:
   - hello:
+notification:
+  - getNotifications:
+  - getUnreadNotificationCount:
+  - markNotificationRead:
+  - markAllNotificationsRead:
 promise:
   - createPromise:
   - getPromises:

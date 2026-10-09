@@ -1,6 +1,7 @@
 import 'package:serverpod/serverpod.dart';
 import 'package:serverpod_auth_idp_server/core.dart';
 import '../generated/protocol.dart';
+import '../notifications/notification_helper.dart';
 
 class PromiseEndpoint extends Endpoint {
   @override
@@ -122,6 +123,18 @@ class PromiseEndpoint extends Endpoint {
         transaction: tx,
       );
 
+      if (insertedPromise.recipientUserId != null) {
+        await NotificationHelper.createNotification(
+          session,
+          userId: insertedPromise.recipientUserId!,
+          type: 'promise_created',
+          title: 'New Promise',
+          message: '$creatorName created a promise: "${insertedPromise.title}"',
+          promiseId: insertedPromise.id,
+          transaction: tx,
+        );
+      }
+
       return insertedPromise;
     });
   }
@@ -219,6 +232,7 @@ class PromiseEndpoint extends Endpoint {
       throw ArgumentError('Completed promises cannot receive new updates.');
     }
 
+    final currentUserId = _getAuthUserId(session);
     final userName = await _getUserDisplayName(session);
     final formattedMessage = '$userName: $cleanMessage';
 
@@ -232,7 +246,32 @@ class PromiseEndpoint extends Endpoint {
       createdAt: DateTime.now().toUtc(),
     );
 
-    return await PromiseActivity.db.insertRow(session, activity);
+    return await session.db.transaction((tx) async {
+      final insertedActivity = await PromiseActivity.db.insertRow(
+        session,
+        activity,
+        transaction: tx,
+      );
+
+      final otherUserId = promise.creatorUserId == currentUserId
+          ? promise.recipientUserId
+          : promise.creatorUserId;
+
+      if (otherUserId != null) {
+        await NotificationHelper.createNotification(
+          session,
+          userId: otherUserId,
+          type: 'promise_updated',
+          title: 'Promise Updated',
+          message:
+              '$userName added an update on "${promise.title}": $cleanMessage',
+          promiseId: promiseId,
+          transaction: tx,
+        );
+      }
+
+      return insertedActivity;
+    });
   }
 
   /// Confirms promise completion. Role is derived from authenticated user identity.
@@ -318,6 +357,35 @@ class PromiseEndpoint extends Endpoint {
         transaction: tx,
       );
 
+      final otherUserId = resolvedRole == 'creator'
+          ? savedPromise.recipientUserId
+          : savedPromise.creatorUserId;
+
+      if (otherUserId != null) {
+        if (bothConfirmed) {
+          await NotificationHelper.createNotification(
+            session,
+            userId: otherUserId,
+            type: 'promise_completed',
+            title: 'Promise Completed',
+            message: 'Promise "${savedPromise.title}" has been completed!',
+            promiseId: promiseId,
+            transaction: tx,
+          );
+        } else {
+          await NotificationHelper.createNotification(
+            session,
+            userId: otherUserId,
+            type: 'confirmation_requested',
+            title: 'Confirmation Requested',
+            message:
+                '$userName confirmed completion for "${savedPromise.title}". Awaiting your confirmation.',
+            promiseId: promiseId,
+            transaction: tx,
+          );
+        }
+      }
+
       return savedPromise;
     });
   }
@@ -389,6 +457,23 @@ class PromiseEndpoint extends Endpoint {
         transaction: tx,
       );
 
+      final otherUserId = resolvedRole == 'creator'
+          ? savedPromise.recipientUserId
+          : savedPromise.creatorUserId;
+
+      if (otherUserId != null) {
+        await NotificationHelper.createNotification(
+          session,
+          userId: otherUserId,
+          type: 'change_requested',
+          title: 'Changes Requested',
+          message:
+              '$userName requested changes on "${savedPromise.title}": $cleanReason',
+          promiseId: promiseId,
+          transaction: tx,
+        );
+      }
+
       return savedPromise;
     });
   }
@@ -399,6 +484,7 @@ class PromiseEndpoint extends Endpoint {
     int promiseId,
     String newStatus,
   ) async {
+    final authUserId = _getAuthUserId(session);
     final cleanStatus = newStatus.trim().toLowerCase();
     if (cleanStatus.isEmpty) {
       throw ArgumentError('New status cannot be empty.');
@@ -459,6 +545,23 @@ class PromiseEndpoint extends Endpoint {
         activity,
         transaction: tx,
       );
+
+      final otherUserId = savedPromise.creatorUserId == authUserId
+          ? savedPromise.recipientUserId
+          : savedPromise.creatorUserId;
+
+      if (otherUserId != null) {
+        await NotificationHelper.createNotification(
+          session,
+          userId: otherUserId,
+          type: 'promise_status_changed',
+          title: 'Promise Status Updated',
+          message:
+              '$userName updated status of "${savedPromise.title}" to $readableStatus',
+          promiseId: promiseId,
+          transaction: tx,
+        );
+      }
 
       return savedPromise;
     });
