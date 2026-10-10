@@ -14,10 +14,12 @@ Every day, people make informal agreements — "I'll review your code by tomorro
 
 Promise solves this problem by turning everyday agreements into structured commitments with:
 - **Verified Participants:** Agreements made between accepted friends.
-- **Clear Terms & Schedules:** Due dates and optional due times.
+- **Clear Terms & Schedules:** Timezone-safe due dates and optional due times.
 - **Chronological History:** Auditable timeline of progress updates and status changes.
 - **Two-Party Confirmation:** Completion is only recognized when both Creator and Recipient confirm.
 - **Documented Change Requests:** A formal mechanism to request and record changes if circumstances evolve.
+- **Private Attachments & Receipts:** Attach evidence or receipts for cross-party approval.
+- **Nested Group Promises:** Create parent commitments containing sub-tasks assigned to different friends.
 - **Terminal Finality:** Completed commitments are archived as immutable, read-only records.
 
 ---
@@ -27,10 +29,11 @@ Promise solves this problem by turning everyday agreements into structured commi
 ### Authentication & Email Delivery
 - **Serverpod Auth Email IDP:** Email authentication managed by Serverpod Auth 4.0.
 - **Brevo REST API Email Delivery:** Transactional emails (registration and password resets) delivered via Brevo's HTTPS REST API (`POST https://api.brevo.com/v3/smtp/email`) on port 443.
+- **Duplicate-Account Detection:** Immediate server-side check during sign-up for existing registered accounts. Returns a clear error (*"An account with this email already exists. Please sign in instead."*) with a direct **Sign In** action preserving the entered email address, preventing duplicate registration requests or unnecessary verification emails.
 - **Server-Side Credentials:** Brevo API keys (`brevoApiKey`) are stored exclusively in Serverpod Cloud secrets / `config/passwords.yaml` and are never exposed to the Flutter client.
 - **Password Reset Flow:** Complete email-verified password reset with secure 6-digit code verification.
 - **Disposable Email Protection:** Authoritative server-side and client-side validation rejecting temporary/disposable email domain providers (e.g., Mailinator, TempMail).
-- **User-Facing Error Feedback:** Human-readable error feedback for invalid credentials, unregistered email reset requests, expired/incorrect verification codes, and network issues.
+- **User-Facing Error Feedback:** Human-readable error feedback for invalid credentials, unregistered email reset requests, duplicate sign-ups, expired/incorrect verification codes, and network issues.
 - **Session Persistence:** Authenticated user sessions persist automatically across app restarts via `FlutterAuthSessionManager`.
 - **Sign Out:** Secure session token revocation and sign out.
 
@@ -42,13 +45,22 @@ Promise solves this problem by turning everyday agreements into structured commi
 - **Backend Authorization:** Friendship relationships and privacy rules are enforced on the server.
 
 ### Promise Management & Tabbed Dashboard
-- **Create Promise:** Log new commitments specifying title, recipient friend, optional description, due date, and optional due time.
-- **PostgreSQL Persistence:** All promises, activities, notifications, and friendships are persisted in PostgreSQL via Serverpod ORM.
+- **Create Promise:** Log new commitments specifying title, recipient friend, optional description, timezone-safe due date, and optional due time.
+- **Nested Group Promises:** Create parent container commitments with up to 10 sub-tasks assigned to different accepted friends in a single atomic database transaction.
+- **Derived Parent Progress:** Parent status is automatically derived from its children (`pending` -> `in_progress` -> `completed` when all children are finished). Direct manual status overrides or completion on parents are strictly blocked.
+- **Timezone-Safe Deadlines:** Date-only deadlines are saved as UTC midnight (`DateTime.utc`) to prevent calendar date shifts across global timezones. Legacy records maintain backward-compatible local time rendering.
+- **PostgreSQL Persistence:** All promises, activities, attachments, notifications, and friendships are persisted in PostgreSQL via Serverpod ORM.
 - **Tabbed Dashboard:** Clean Material 3 dashboard organized into two sections:
-  - **Current (`pending`, `in_progress`, `awaiting_confirmation`):** Sorted strictly by nearest due date and due time first.
+  - **Current (`pending`, `in_progress`, `awaiting_confirmation`):** Sorted strictly by nearest due date and due time first, with visual indicators (`OVERDUE`, `DUE TODAY`, `UPCOMING`).
   - **Completed (`completed`):** Archived commitments sorted newest first.
-  - Live section counts (e.g. `Current (2)`, `Completed (4)`) and custom empty state messages (`No active promises yet.`, `No completed promises yet.`).
+  - Live section counts (e.g. `Current (2)`, `Completed (4)`) and custom empty state messages.
 - **Participant Authorization:** Serverpod backend verifies caller identity against creator and recipient IDs for all operations.
+
+### Receipts & Private File Attachments
+- **Serverpod Private Storage:** Attach documents (PDFs) or images (PNG, JPEG) up to 10 MB per file.
+- **Authorized Uploads & Downloads:** Upload descriptions and 15-minute temporary download URLs are strictly restricted to authorized Promise participants.
+- **Cross-Party Review:** Non-uploading participants can approve or reject submitted receipts with optional rejection reasons.
+- **Preserved History:** Uploading a replacement receipt creates a new record while keeping previous review history intact for auditing.
 
 ### Persistent In-App Notification System
 - **Serverpod + PostgreSQL Notifications:** Full in-app notification engine with persistent database storage (`AppNotification`).
@@ -87,33 +99,23 @@ Promise solves this problem by turning everyday agreements into structured commi
 ```text
 User
  ↓
-Create Promise
+Create Promise / Group Promise
  ↓
-Accepted Friend
+Accepted Friend(s)
  ↓
 Promise Details
+ ├── Sub-Promises (for Group Parents)
+ ├── Attachments & Evidence (PDF / Images with Approve / Reject Review)
  ├── Progress Updates (Pending / In Progress / Completed)
  ├── Status Tracking (Pending / In Progress / Awaiting Confirmation)
  ├── Activity History Timeline
  ├── Confirm Completion (Creator & Recipient)
  └── Request Changes (Resets Confirmations ──> In Progress)
         ↓
- Two-Party Confirmation
+ Two-Party Confirmation / Aggregate Sub-Promise Completion
         ↓
     Completed (Terminal & Read-Only)
 ```
-
----
-
-## Screens / User Flow
-
-1. **`SignInScreen`:** Registration with email verification code, login, password reset, and disposable email validation.
-2. **`PromiseHomePage`:** Main dashboard displaying active and completed commitments, navigation drawer/tabs for Friends.
-3. **`FriendsScreen`:** User search, incoming pending friend requests, accept/reject actions, and current friends list.
-4. **`CreatePromiseScreen`:** Commitment creation form with friend picker, native date/time pickers, and description input.
-5. **`PromisePreparationScreen`:** Full-screen pre-loading route ensuring asynchronous data fetch before opening details.
-6. **`PromiseDetailsScreen`:** Detailed commitment schedule, participant status badges, confirmation buttons, request changes modal, and activity timeline.
-7. **`AddUpdateScreen`:** Full-screen route for logging progress updates with individual activity statuses.
 
 ---
 
@@ -129,56 +131,21 @@ Promise Details
 - **Language:** Dart
 - **Database:** PostgreSQL
 - **ORM:** Serverpod ORM
+- **Cloud Storage:** Serverpod Cloud Storage (`serverpod_cloud_storage`)
 
 ### Authentication & Email
 - **Identity Provider:** Serverpod Auth IDP (`serverpod_auth_idp_server`, `serverpod_auth_idp_flutter`)
 - **Email Delivery:** Brevo Transactional Email REST API (`https://api.brevo.com/v3/smtp/email`)
 - **Session Management:** `FlutterAuthSessionManager`
 
-### Tools & AI
-- **IDE & Development:** Android Studio
-- **Version Control:** Git & GitHub
-- **AI Coding Assistance:** Google Gemini
-
 ---
 
-## Architecture
-
-```text
-Flutter Android App
-        ↓ HTTPS
-promise_client (Generated Client Protocol)
-        ↓ HTTPS
-Serverpod Cloud (promise_server)
-        ↓ HTTPS :443
-Brevo Transactional Email API (api.brevo.com)
-        ↓
-User Email Inbox
-```
-
-```text
-Serverpod Backend (promise_server)
-        ↓ ORM
-PostgreSQL Database
-```
-
-> **Security Guarantee:** Brevo API keys (`brevoApiKey`) remain strictly on the Serverpod Cloud backend and are never included or exposed in the Flutter application binary.
-
----
-
-## Email & Authentication
-
-Promise uses Brevo's Transactional Email REST API over HTTPS port 443 for cloud email delivery:
-
-- **Endpoint:** `POST https://api.brevo.com/v3/smtp/email`
-- **Header:** `api-key: <brevoApiKey>`
-- **Port:** HTTPS Port 443 (avoids cloud network firewall blocks on raw SMTP ports)
-
-### User-Facing Error Messaging
-Promise translates backend authentication exceptions into friendly, actionable UI feedback:
+## User-Facing Error Messaging
+Promise translates backend authentication and validation exceptions into friendly, actionable UI feedback:
 
 | Scenario | User Message |
 | :--- | :--- |
+| **Existing Account Sign Up** | *"An account with this email already exists. Please sign in instead."* (with direct **Sign In** action) |
 | **Wrong Credentials** | *"Incorrect email or password."* |
 | **Unregistered Email Reset** | *"No account found with this email address."* |
 | **Invalid Code** | *"That verification code is incorrect. Please try again."* |
@@ -186,49 +153,6 @@ Promise translates backend authentication exceptions into friendly, actionable U
 | **Disposable Email** | *"This email provider is not supported. Please use a permanent email address."* |
 | **Delivery Failure** | *"We couldn't send the verification email. Please try again."* |
 | **Network Error** | *"Unable to connect to Promise. Please check your connection and try again."* |
-
----
-
-## Project Structure
-
-```text
-PROMISE/
-├── promise_client/    # Generated Serverpod client protocol library
-├── promise_flutter/   # Flutter cross-platform frontend application
-├── promise_server/    # Serverpod backend application (endpoints, ORM models, auth)
-├── .github/           # Issue templates and GitHub configurations
-├── AGENTS.md          # Agent instructions & development guidelines
-└── README.md          # Project documentation
-```
-
-### Packages Overview
-- **`promise_server`**: Serverpod backend containing endpoints (`emailIdp`, `friend`, `promise`), ORM models (`.spy.yaml`), Brevo email service, and database migrations.
-- **`promise_client`**: Generated Dart client library imported by the Flutter application.
-- **`promise_flutter`**: Flutter client application containing Material 3 screens, navigation routes, and Serverpod client setup.
-
----
-
-## Production Deployment
-
-The Promise backend is deployed and running live on **Serverpod Cloud**:
-
-- **Web:** [https://promise.serverpod.space/](https://promise.serverpod.space/)
-- **API:** [https://promise.api.serverpod.space/](https://promise.api.serverpod.space/)
-- **Insights:** [https://promise.insights.serverpod.space/](https://promise.insights.serverpod.space/)
-
-### Building Release APK for Testers
-
-To compile an Android release APK connected to the production cloud instance:
-
-```powershell
-cd D:\GITHUB_REPOS\PROMISE\promise_flutter
-flutter clean
-flutter pub get
-flutter build apk --release --dart-define=SERVER_URL=https://promise.api.serverpod.space/
-```
-
-Output APK location:
-`promise_flutter/build/app/outputs/flutter-apk/app-release.apk`
 
 ---
 
@@ -282,6 +206,9 @@ cd D:\GITHUB_REPOS\PROMISE\promise_flutter
 # Format code and run static analysis
 dart format .
 dart analyze
+
+# Run Flutter tests
+flutter test test/deadline_utils_test.dart
 ```
 
 ---
@@ -289,52 +216,35 @@ dart analyze
 ## Testing & Verification
 
 ### Automated Backend Tests (`dart test`)
-- [x] Serverpod server initialization and protocol generation.
 - [x] Disposable email validator unit tests (`disposable_email_validator_test.dart`).
 - [x] Email IDP endpoint integration tests (`email_idp_endpoint_test.dart`).
-- [x] Notification endpoint integration tests (`notification_endpoint_test.dart`).
-- [x] Database migrations, model serialization, and user authorization tests (`14/14` tests passing).
+- [x] Email registration duplicate detection integration tests (`email_idp_registration_test.dart`).
+- [x] Attachment endpoint security & upload integration tests (`attachment_endpoint_test.dart`).
+- [x] Group promise atomic creation & derived lifecycle integration tests (`group_promise_test.dart`).
+- [x] All server integration tests passing (`37/37` tests).
+
+### Automated Flutter Tests (`flutter test`)
+- [x] Timezone-safe deadline rendering and sorting tests (`deadline_utils_test.dart`).
+- [x] All Flutter tests passing (`5/5` tests).
 
 ### Static Analysis
 - [x] `promise_server`: Clean (`No issues found!`).
 - [x] `promise_client`: Clean (`No issues found!`).
 - [x] `promise_flutter`: Clean (`No issues found!`).
 
-### Manual & Production Verification
-- [x] **Production Cloud Registration:** Verified 6-digit verification code delivery to real email inbox via Brevo REST API (`Status: 201`).
-- [x] **Password Reset:** Verified email delivery and password reset flow for registered accounts.
-- [x] **Disposable Email Protection:** Rejection of temporary email domains (e.g., Mailinator).
-- [x] **Friend System:** User search, sending/accepting requests, and unfriending.
-- [x] **Promise Lifecycle:** Creating commitments for accepted friends, activity progress updates, request changes, and two-party completion.
-- [x] **Terminal State Finality:** Confirmed promises become read-only and reject further edits.
-- [x] **Persistence:** Full state restoration across app restarts via PostgreSQL and `FlutterAuthSessionManager`.
-
 ---
 
-## AI-Assisted Development
+## Limitations & Deferred Features
 
-Promise was built with AI-assisted software engineering tools (Google Gemini) for:
-- Architecture planning and database model design (`.spy.yaml`).
-- Endpoint logic and Flutter screen implementation.
-- Real-time debugging, linting, and refactoring.
-- Material 3 UI design and navigation routing.
-- Test scenario planning and error handling implementation.
-
-All AI-generated code was reviewed, refactored, and tested on Android emulator and production cloud environments.
-
----
-
-## Current Limitations
-
-- **Push Notifications & Reminders:** Scheduled push notifications and automated email reminders are planned for future updates.
-- **Evidence / Attachments:** Photo and document file attachments for promise updates are planned.
-- **Payment Tracking:** Payment escrow/tracking integrations are planned for future versions.
-- **Search Scale:** User search checks a bounded set of profiles appropriate for MVP scale.
+- **30-Day Attachment Pruning:** Automatic background cleanup of 30-day unreviewed attachments or orphaned files remains deferred (for post-hackathon) to avoid untested database cron jobs.
+- **Malware Scanning:** File uploads validate 10 MB limits and MIME types (`pdf`, `png`, `jpeg`), but do not perform deep byte-level antivirus scanning.
+- **Push Notifications:** Reminders currently use persistent in-app notifications; FCM push notifications are planned for future releases.
+- **Payment Gateway Integration:** Payment escrow and gateways are out of scope for the current MVP release.
 
 ---
 
 ## Status
 
-Promise is a full-stack Serverpod 4.0 + Flutter MVP application deployed to Serverpod Cloud. All core features — email authentication with Brevo REST API, friend management, promise creation, progress tracking, two-party completion, and PostgreSQL persistence — are implemented, verified, and running live in production.
+Promise is a full-stack Serverpod 4.0 + Flutter application. All core features — duplicate-account detection, Brevo email authentication, friends, time-safe promises, grouped multi-recipient promises, private receipt attachments, in-app notifications, and PostgreSQL persistence — are implemented, verified, and passing all automated test suites.
 
 **Repository:** [https://github.com/nabilkhan-01/Promise](https://github.com/nabilkhan-01/Promise)

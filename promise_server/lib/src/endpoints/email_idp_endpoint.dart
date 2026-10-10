@@ -9,6 +9,17 @@ class EmailIdpEndpoint extends EmailIdpBaseEndpoint {
     required String email,
   }) async {
     final cleanEmail = DisposableEmailValidator.validateAndNormalize(email);
+
+    final existingAccount = await EmailAccount.db.findFirstRow(
+      session,
+      where: (t) => t.email.equals(cleanEmail),
+    );
+    if (existingAccount != null) {
+      throw ArgumentError(
+        'An account with this email already exists. Please sign in instead.',
+      );
+    }
+
     return super.startRegistration(session, email: cleanEmail);
   }
 

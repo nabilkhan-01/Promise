@@ -5,8 +5,41 @@ import 'package:serverpod_auth_idp_flutter/src/common/exceptions.dart';
 import '../client.dart';
 import '../utils/disposable_email_validator.dart';
 
-class SignInScreen extends StatelessWidget {
+class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
+
+  @override
+  State<SignInScreen> createState() => _SignInScreenState();
+}
+
+class _SignInScreenState extends State<SignInScreen> {
+  late final EmailAuthController _emailAuthController;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailAuthController = EmailAuthController(
+      client: client,
+      startScreen: EmailFlowScreen.startRegistration,
+      onAuthenticated: () {},
+      onError: _handleError,
+      emailValidation: (email) {
+        try {
+          DisposableEmailValidator.validateAndNormalize(email);
+        } on ArgumentError catch (e) {
+          throw InvalidEmailException(
+            e.message?.toString() ?? 'Invalid email',
+          );
+        }
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _emailAuthController.dispose();
+    super.dispose();
+  }
 
   String _cleanErrorMessage(Object error) {
     final buffer = StringBuffer(error.toString());
@@ -19,6 +52,13 @@ class SignInScreen extends StatelessWidget {
     }
 
     final fullStr = buffer.toString();
+
+    // 0. Existing Account / Duplicate Sign Up
+    if (fullStr.contains('already exists') ||
+        fullStr.contains('already registered') ||
+        fullStr.contains('EmailAccountAlreadyRegisteredException')) {
+      return 'An account with this email already exists. Please sign in instead.';
+    }
 
     // 1. Disposable Email
     if (fullStr.contains('disposable') || fullStr.contains('not supported')) {
@@ -83,21 +123,36 @@ class SignInScreen extends StatelessWidget {
     return 'Authentication failed. Please check your details and connection.';
   }
 
+  void _handleError(Object error) {
+    final cleanMsg = _cleanErrorMessage(error);
+    final fullStr = error.toString();
+    final isDuplicateAccount =
+        fullStr.contains('already exists') ||
+        fullStr.contains('already registered') ||
+        fullStr.contains('EmailAccountAlreadyRegisteredException');
+
+    debugPrint('[SignInScreen] Error caught: $error -> $cleanMsg');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(cleanMsg),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Theme.of(context).colorScheme.error,
+        action: isDuplicateAccount
+            ? SnackBarAction(
+                label: 'Sign In',
+                textColor: Colors.white,
+                onPressed: () {
+                  _emailAuthController.navigateTo(EmailFlowScreen.login);
+                },
+              )
+            : null,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    void handleError(Object error) {
-      final cleanMsg = _cleanErrorMessage(error);
-      debugPrint('[SignInScreen] Error caught: $error -> $cleanMsg');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(cleanMsg),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: theme.colorScheme.error,
-        ),
-      );
-    }
 
     return Scaffold(
       body: SafeArea(
@@ -131,21 +186,10 @@ class SignInScreen extends StatelessWidget {
                 SignInWidget(
                   client: client,
                   emailSignInWidget: EmailSignInWidget(
-                    client: client,
-                    onError: handleError,
-                    onAuthenticated: () {},
-                    emailValidation: (email) {
-                      try {
-                        DisposableEmailValidator.validateAndNormalize(email);
-                      } on ArgumentError catch (e) {
-                        throw InvalidEmailException(
-                          e.message?.toString() ?? 'Invalid email',
-                        );
-                      }
-                    },
+                    controller: _emailAuthController,
                   ),
                   onAuthenticated: () {},
-                  onError: handleError,
+                  onError: _handleError,
                 ),
               ],
             ),
