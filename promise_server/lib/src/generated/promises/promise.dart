@@ -27,8 +27,11 @@ abstract class Promise
     bool? recipientConfirmed,
     this.creatorUserId,
     this.recipientUserId,
+    bool? isGroupParent,
+    this.parentPromiseId,
   }) : creatorConfirmed = creatorConfirmed ?? false,
-       recipientConfirmed = recipientConfirmed ?? false;
+       recipientConfirmed = recipientConfirmed ?? false,
+       isGroupParent = isGroupParent ?? false;
 
   factory Promise({
     int? id,
@@ -43,6 +46,8 @@ abstract class Promise
     bool? recipientConfirmed,
     String? creatorUserId,
     String? recipientUserId,
+    bool? isGroupParent,
+    int? parentPromiseId,
   }) = _PromiseImpl;
 
   factory Promise.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -71,6 +76,10 @@ abstract class Promise
             ),
       creatorUserId: jsonSerialization['creatorUserId'] as String?,
       recipientUserId: jsonSerialization['recipientUserId'] as String?,
+      isGroupParent: jsonSerialization['isGroupParent'] == null
+          ? null
+          : _is.BoolJsonExtension.fromJson(jsonSerialization['isGroupParent']),
+      parentPromiseId: jsonSerialization['parentPromiseId'] as int?,
     );
   }
 
@@ -103,6 +112,10 @@ abstract class Promise
 
   String? recipientUserId;
 
+  bool isGroupParent;
+
+  int? parentPromiseId;
+
   @override
   _is.Table<int?> get table => t;
 
@@ -122,6 +135,8 @@ abstract class Promise
     bool? recipientConfirmed,
     String? creatorUserId,
     String? recipientUserId,
+    bool? isGroupParent,
+    int? parentPromiseId,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -139,6 +154,8 @@ abstract class Promise
       'recipientConfirmed': recipientConfirmed,
       if (creatorUserId != null) 'creatorUserId': creatorUserId,
       if (recipientUserId != null) 'recipientUserId': recipientUserId,
+      'isGroupParent': isGroupParent,
+      if (parentPromiseId != null) 'parentPromiseId': parentPromiseId,
     };
   }
 
@@ -158,6 +175,8 @@ abstract class Promise
       'recipientConfirmed': recipientConfirmed,
       if (creatorUserId != null) 'creatorUserId': creatorUserId,
       if (recipientUserId != null) 'recipientUserId': recipientUserId,
+      'isGroupParent': isGroupParent,
+      if (parentPromiseId != null) 'parentPromiseId': parentPromiseId,
     };
   }
 
@@ -205,6 +224,8 @@ class _PromiseImpl extends Promise {
     bool? recipientConfirmed,
     String? creatorUserId,
     String? recipientUserId,
+    bool? isGroupParent,
+    int? parentPromiseId,
   }) : super._(
          id: id,
          title: title,
@@ -218,6 +239,8 @@ class _PromiseImpl extends Promise {
          recipientConfirmed: recipientConfirmed,
          creatorUserId: creatorUserId,
          recipientUserId: recipientUserId,
+         isGroupParent: isGroupParent,
+         parentPromiseId: parentPromiseId,
        );
 
   /// Returns a shallow copy of this [Promise]
@@ -237,6 +260,8 @@ class _PromiseImpl extends Promise {
     bool? recipientConfirmed,
     Object? creatorUserId = _Undefined,
     Object? recipientUserId = _Undefined,
+    bool? isGroupParent,
+    Object? parentPromiseId = _Undefined,
   }) {
     return Promise(
       id: id is int? ? id : this.id,
@@ -255,6 +280,10 @@ class _PromiseImpl extends Promise {
       recipientUserId: recipientUserId is String?
           ? recipientUserId
           : this.recipientUserId,
+      isGroupParent: isGroupParent ?? this.isGroupParent,
+      parentPromiseId: parentPromiseId is int?
+          ? parentPromiseId
+          : this.parentPromiseId,
     );
   }
 }
@@ -321,6 +350,16 @@ class PromiseUpdateTable extends _is.UpdateTable<PromiseTable> {
         table.recipientUserId,
         value,
       );
+
+  _is.ColumnValue<bool, bool> isGroupParent(bool value) => _is.ColumnValue(
+    table.isGroupParent,
+    value,
+  );
+
+  _is.ColumnValue<int, int> parentPromiseId(int? value) => _is.ColumnValue(
+    table.parentPromiseId,
+    value,
+  );
 }
 
 class PromiseTable extends _is.Table<int?> {
@@ -372,6 +411,15 @@ class PromiseTable extends _is.Table<int?> {
       'recipientUserId',
       this,
     );
+    isGroupParent = _is.ColumnBool(
+      'isGroupParent',
+      this,
+      hasDefault: true,
+    );
+    parentPromiseId = _is.ColumnInt(
+      'parentPromiseId',
+      this,
+    );
   }
 
   late final PromiseUpdateTable updateTable;
@@ -398,6 +446,10 @@ class PromiseTable extends _is.Table<int?> {
 
   late final _is.ColumnString recipientUserId;
 
+  late final _is.ColumnBool isGroupParent;
+
+  late final _is.ColumnInt parentPromiseId;
+
   @override
   List<_is.Column> get columns => [
     id,
@@ -412,6 +464,8 @@ class PromiseTable extends _is.Table<int?> {
     recipientConfirmed,
     creatorUserId,
     recipientUserId,
+    isGroupParent,
+    parentPromiseId,
   ];
 }
 

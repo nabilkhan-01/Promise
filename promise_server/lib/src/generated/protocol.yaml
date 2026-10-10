@@ -32,8 +32,10 @@ attachment:
   - reviewAttachment:
 promise:
   - createPromise:
+  - createGroupedPromise:
   - getPromises:
   - getPromise:
+  - getChildPromises:
   - getActivities:
   - addActivity:
   - confirmPromiseCompletion:

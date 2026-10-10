@@ -1165,6 +1165,41 @@ class _PromiseEndpoint {
     });
   }
 
+  _ida.Future<_ipgb4ryh.Promise> createGroupedPromise(
+    _ist.TestSessionBuilder sessionBuilder,
+    _ipgb4ryh.Promise parent,
+    List<_ipgb4ryh.Promise> children,
+  ) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'promise',
+            method: 'createGroupedPromise',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'promise',
+          methodName: 'createGroupedPromise',
+          parameters: _ist.testObjectToJson({
+            'parent': parent,
+            'children': children,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<_ipgb4ryh.Promise>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
   _ida.Future<List<_ipgb4ryh.Promise>> getPromises(
     _ist.TestSessionBuilder sessionBuilder,
   ) async {
@@ -1219,6 +1254,39 @@ class _PromiseEndpoint {
                   _localCallContext.arguments,
                 )
                 as _ida.Future<_ipgb4ryh.Promise?>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _ida.Future<List<_ipgb4ryh.Promise>> getChildPromises(
+    _ist.TestSessionBuilder sessionBuilder,
+    int parentPromiseId,
+  ) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'promise',
+            method: 'getChildPromises',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'promise',
+          methodName: 'getChildPromises',
+          parameters: _ist.testObjectToJson({
+            'parentPromiseId': parentPromiseId,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<List<_ipgb4ryh.Promise>>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();

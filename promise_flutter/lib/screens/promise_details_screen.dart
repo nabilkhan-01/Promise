@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../client.dart';
 import '../utils/deadline_utils.dart';
 import 'add_update_screen.dart';
+import 'promise_preparation_screen.dart';
 import 'request_changes_screen.dart';
 
 class PromiseDetailsScreen extends StatefulWidget {
@@ -29,6 +30,7 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
   late Promise _currentPromise;
   List<PromiseActivity> _activities = [];
   List<PromiseAttachment> _attachments = [];
+  List<Promise> _subPromises = [];
   bool _isLoadingActivities = false;
   bool _isUpdatingStatus = false;
   String? _activityError;
@@ -61,6 +63,11 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
       final activities = await client.promise.getActivities(promiseId);
       final attachments = await client.attachment.getAttachments(promiseId);
 
+      List<Promise> subPromises = [];
+      if (_currentPromise.isGroupParent) {
+        subPromises = await client.promise.getChildPromises(promiseId);
+      }
+
       if (!mounted) return;
 
       setState(() {
@@ -69,6 +76,7 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
         }
         _activities = activities;
         _attachments = attachments;
+        _subPromises = subPromises;
         _isLoadingActivities = false;
         _activityError = null;
       });
@@ -732,54 +740,82 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
                         ],
                       ),
 
-                      const SizedBox(height: 16),
-                      const Divider(),
-                      const SizedBox(height: 12),
+                      if (!_currentPromise.isGroupParent) ...[
+                        const SizedBox(height: 16),
+                        const Divider(),
+                        const SizedBox(height: 12),
 
-                      // Responsive Promise Status Progression
-                      Text(
-                        'Overall Promise Status',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
+                        // Responsive Promise Status Progression
+                        Text(
+                          'Overall Promise Status',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      PromiseStatusProgressWidget(
-                        currentStatus: _currentPromise.status,
-                        isBothConfirmed: isBothConfirmed,
-                        isUpdatingStatus: _isUpdatingStatus,
-                        onStatusSelected: (selectedStatus) {
-                          if (selectedStatus != 'awaiting_confirmation') {
-                            _changeOverallStatus(selectedStatus);
-                          }
-                        },
-                      ),
+                        const SizedBox(height: 8),
+                        PromiseStatusProgressWidget(
+                          currentStatus: _currentPromise.status,
+                          isBothConfirmed: isBothConfirmed,
+                          isUpdatingStatus: _isUpdatingStatus,
+                          onStatusSelected: (selectedStatus) {
+                            if (selectedStatus != 'awaiting_confirmation') {
+                              _changeOverallStatus(selectedStatus);
+                            }
+                          },
+                        ),
 
-                      if (isCompleted) ...[
+                        if (isCompleted) ...[
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.green.withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.check_circle_outline,
+                                  color: Colors.green,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'Promise Completed — This promise is final and no further changes can be made.',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: Colors.green.shade800,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ] else ...[
                         const SizedBox(height: 16),
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.green.withValues(alpha: 0.1),
+                            color: colorScheme.primaryContainer,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.green.withValues(alpha: 0.3),
-                            ),
                           ),
                           child: Row(
                             children: [
-                              const Icon(
-                                Icons.check_circle_outline,
-                                color: Colors.green,
-                                size: 20,
+                              Icon(
+                                Icons.group_work,
+                                color: colorScheme.onPrimaryContainer,
                               ),
-                              const SizedBox(width: 10),
+                              const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
-                                  'Promise Completed — This promise is final and no further changes can be made.',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: Colors.green.shade800,
-                                    fontWeight: FontWeight.bold,
+                                  'This is a group promise. Its status updates automatically as sub-promises progress.',
+                                  style: TextStyle(
+                                    color: colorScheme.onPrimaryContainer,
                                   ),
                                 ),
                               ),
@@ -794,87 +830,93 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
 
               const SizedBox(height: 16),
 
-              // Two-Party Completion Confirmation Card
-              Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(
-                    color: colorScheme.outlineVariant.withValues(alpha: 0.6),
+              if (_currentPromise.isGroupParent) ...[
+                _buildSubPromisesSection(theme, colorScheme),
+              ] else ...[
+                // Two-Party Completion Confirmation Card
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: colorScheme.outlineVariant.withValues(alpha: 0.6),
+                    ),
                   ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Completion Confirmation (Two-Party)',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Both parties must confirm before overall status becomes Completed.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Creator Confirmation Item
-                      _buildConfirmationItem(
-                        title: 'Creator',
-                        isConfirmed: _currentPromise.creatorConfirmed,
-                        canConfirm:
-                            !isCompleted && !_isUpdatingStatus && isUserCreator,
-                        onConfirm: () => _confirmCompletion('creator'),
-                        theme: theme,
-                        colorScheme: colorScheme,
-                      ),
-
-                      const SizedBox(height: 12),
-                      const Divider(height: 1),
-                      const SizedBox(height: 12),
-
-                      // Recipient Confirmation Item
-                      _buildConfirmationItem(
-                        title: 'Recipient',
-                        isConfirmed: _currentPromise.recipientConfirmed,
-                        canConfirm:
-                            !isCompleted &&
-                            !_isUpdatingStatus &&
-                            isUserRecipient,
-                        onConfirm: () => _confirmCompletion('recipient'),
-                        theme: theme,
-                        colorScheme: colorScheme,
-                      ),
-
-                      if (!isCompleted) ...[
-                        const SizedBox(height: 16),
-                        const Divider(height: 1),
-                        const SizedBox(height: 16),
-
-                        // Request Changes Action Button
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: _isUpdatingStatus
-                                ? null
-                                : _openRequestChangesScreen,
-                            icon: const Icon(
-                              Icons.assignment_return_outlined,
-                              size: 18,
-                            ),
-                            label: const Text('Request Changes'),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Completion Confirmation (Two-Party)',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Both parties must confirm before overall status becomes Completed.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Creator Confirmation Item
+                        _buildConfirmationItem(
+                          title: 'Creator',
+                          isConfirmed: _currentPromise.creatorConfirmed,
+                          canConfirm:
+                              !isCompleted &&
+                              !_isUpdatingStatus &&
+                              isUserCreator,
+                          onConfirm: () => _confirmCompletion('creator'),
+                          theme: theme,
+                          colorScheme: colorScheme,
+                        ),
+
+                        const SizedBox(height: 12),
+                        const Divider(height: 1),
+                        const SizedBox(height: 12),
+
+                        // Recipient Confirmation Item
+                        _buildConfirmationItem(
+                          title: 'Recipient',
+                          isConfirmed: _currentPromise.recipientConfirmed,
+                          canConfirm:
+                              !isCompleted &&
+                              !_isUpdatingStatus &&
+                              isUserRecipient,
+                          onConfirm: () => _confirmCompletion('recipient'),
+                          theme: theme,
+                          colorScheme: colorScheme,
+                        ),
+
+                        if (!isCompleted) ...[
+                          const SizedBox(height: 16),
+                          const Divider(height: 1),
+                          const SizedBox(height: 16),
+
+                          // Request Changes Action Button
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: _isUpdatingStatus
+                                  ? null
+                                  : _openRequestChangesScreen,
+                              icon: const Icon(
+                                Icons.assignment_return_outlined,
+                                size: 18,
+                              ),
+                              label: const Text('Request Changes'),
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
-              ),
+              ],
 
               const SizedBox(height: 28),
 
@@ -930,6 +972,121 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSubPromisesSection(ThemeData theme, ColorScheme colorScheme) {
+    if (_subPromises.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Sub-Promises',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ..._subPromises.map((child) {
+          final isCompleted = child.status == 'completed';
+          Color statusColor;
+          if (isCompleted) {
+            statusColor = Colors.green;
+          } else if (child.status == 'in_progress') {
+            statusColor = Colors.orange;
+          } else if (child.status == 'awaiting_confirmation') {
+            statusColor = Colors.amber.shade800;
+          } else {
+            statusColor = colorScheme.primary;
+          }
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+              ),
+            ),
+            child: InkWell(
+              onTap: () async {
+                final updated = await Navigator.push<bool?>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PromisePreparationScreen(
+                      initialPromise: child,
+                    ),
+                  ),
+                );
+                if (updated == true && mounted) {
+                  _hasChanges = true;
+                  _loadData(showLoading: false);
+                }
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            child.title,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            _formatStatusLabel(child.status).toUpperCase(),
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: statusColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 9,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.person_outline,
+                          size: 16,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            child.promisedTo,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
+      ],
     );
   }
 

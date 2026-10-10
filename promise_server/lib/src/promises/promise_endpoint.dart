@@ -18,7 +18,10 @@ class PromiseEndpoint extends Endpoint {
 
   /// Helper to get user's display name or email for activity logs.
   Future<String> _getUserDisplayName(Session session) async {
-    final userProfile = await session.authenticated?.userProfile(session);
+    UserProfileModel? userProfile;
+    try {
+      userProfile = await session.authenticated?.userProfile(session);
+    } catch (_) {}
     if (userProfile == null) return 'User';
     final name = userProfile.userName?.trim();
     if (name != null && name.isNotEmpty) return name;
@@ -29,7 +32,10 @@ class PromiseEndpoint extends Endpoint {
 
   /// Helper to get user's email address.
   Future<String> _getUserEmail(Session session) async {
-    final userProfile = await session.authenticated?.userProfile(session);
+    UserProfileModel? userProfile;
+    try {
+      userProfile = await session.authenticated?.userProfile(session);
+    } catch (_) {}
     return userProfile?.email?.trim().toLowerCase() ?? '';
   }
 
@@ -100,6 +106,8 @@ class PromiseEndpoint extends Endpoint {
       recipientConfirmed: false,
       creatorUserId: creatorUserId,
       recipientUserId: recipientUserId,
+      isGroupParent: false,
+      parentPromiseId: null,
     );
 
     return await session.db.transaction((tx) async {
@@ -139,6 +147,173 @@ class PromiseEndpoint extends Endpoint {
     });
   }
 
+  /// Creates a group of promises atomically.
+  Future<Promise> createGroupedPromise(
+    Session session,
+    Promise parent,
+    List<Promise> children,
+  ) async {
+    final creatorUserId = _getAuthUserId(session);
+
+    if (parent.title.trim().isEmpty) {
+      throw ArgumentError('Parent promise title cannot be empty.');
+    }
+    if (children.isEmpty) {
+      throw ArgumentError('A grouped promise must have at least one child.');
+    }
+    if (children.length > 10) {
+      throw ArgumentError('Maximum 10 children allowed per group.');
+    }
+
+    final creatorName = await _getUserDisplayName(session);
+
+    final recipientUserIds = children
+        .map((c) => c.recipientUserId?.trim())
+        .whereType<String>()
+        .toSet();
+    if (recipientUserIds.isEmpty ||
+        recipientUserIds.length != children.length) {
+      throw ArgumentError(
+        'All children must have a valid recipient user selected.',
+      );
+    }
+    if (recipientUserIds.contains(creatorUserId)) {
+      throw ArgumentError('You cannot create a promise to yourself.');
+    }
+
+    final friendships = await Friendship.db.find(
+      session,
+      where: (t) =>
+          ((t.senderUserId.equals(creatorUserId) &
+                  t.receiverUserId.inSet(recipientUserIds)) |
+              (t.senderUserId.inSet(recipientUserIds) &
+                  t.receiverUserId.equals(creatorUserId))) &
+          t.status.equals('accepted'),
+    );
+
+    final validFriendIds = <String>{};
+    for (var f in friendships) {
+      if (f.senderUserId == creatorUserId) {
+        validFriendIds.add(f.receiverUserId);
+      } else {
+        validFriendIds.add(f.senderUserId);
+      }
+    }
+
+    for (var id in recipientUserIds) {
+      if (!validFriendIds.contains(id)) {
+        throw ArgumentError('One or more recipients are not accepted friends.');
+      }
+    }
+
+    List<UserProfileModel> profiles = [];
+    try {
+      profiles = await AuthServices.instance.userProfiles.admin
+          .listUserProfiles(session, limit: 500);
+    } catch (_) {}
+    final profileMap = {for (var p in profiles) p.authUserId.toString(): p};
+
+    final parentToInsert = parent.copyWith(
+      title: parent.title.trim(),
+      promisedTo: 'Multiple Recipients',
+      description: parent.description?.trim(),
+      createdAt: DateTime.now().toUtc(),
+      status: 'pending',
+      creatorConfirmed: false,
+      recipientConfirmed: false,
+      creatorUserId: creatorUserId,
+      recipientUserId: null,
+      isGroupParent: true,
+      parentPromiseId: null,
+    );
+
+    return await session.db.transaction((tx) async {
+      final insertedParent = await Promise.db.insertRow(
+        session,
+        parentToInsert,
+        transaction: tx,
+      );
+
+      final parentActivity = PromiseActivity(
+        promiseId: insertedParent.id!,
+        type: 'created',
+        message: 'Group Promise created by $creatorName',
+        status: 'pending',
+        createdAt: DateTime.now().toUtc(),
+      );
+      await PromiseActivity.db.insertRow(
+        session,
+        parentActivity,
+        transaction: tx,
+      );
+
+      for (var child in children) {
+        if (child.title.trim().isEmpty) {
+          throw ArgumentError('Child promise title cannot be empty.');
+        }
+
+        final recId = child.recipientUserId!.trim();
+        final recProfile = profileMap[recId];
+        String childPromisedTo = 'Friend';
+        if (recProfile != null) {
+          final name = recProfile.userName?.trim();
+          final email = recProfile.email?.trim();
+          if (name != null && name.isNotEmpty) {
+            childPromisedTo = name;
+          } else if (email != null && email.isNotEmpty) {
+            childPromisedTo = email;
+          }
+        }
+
+        final childToInsert = child.copyWith(
+          title: child.title.trim(),
+          promisedTo: childPromisedTo,
+          description: child.description?.trim(),
+          createdAt: DateTime.now().toUtc(),
+          status: 'pending',
+          creatorConfirmed: false,
+          recipientConfirmed: false,
+          creatorUserId: creatorUserId,
+          recipientUserId: recId,
+          isGroupParent: false,
+          parentPromiseId: insertedParent.id,
+        );
+
+        final insertedChild = await Promise.db.insertRow(
+          session,
+          childToInsert,
+          transaction: tx,
+        );
+
+        final childActivity = PromiseActivity(
+          promiseId: insertedChild.id!,
+          type: 'created',
+          message: 'Promise created by $creatorName (Part of a group)',
+          status: 'pending',
+          createdAt: DateTime.now().toUtc(),
+        );
+        await PromiseActivity.db.insertRow(
+          session,
+          childActivity,
+          transaction: tx,
+        );
+
+        await NotificationHelper.createNotification(
+          session,
+          userId: recId,
+          type: 'promise_created',
+          title: 'New Promise',
+          message:
+              '$creatorName assigned you a promise: "${insertedChild.title}"',
+          promiseId: insertedChild.id,
+          transaction: tx,
+        );
+      }
+
+      return insertedParent;
+    });
+  }
+
   /// Retrieves promises relevant to the current authenticated user.
   Future<List<Promise>> getPromises(Session session) async {
     final authUserId = _getAuthUserId(session);
@@ -147,15 +322,18 @@ class PromiseEndpoint extends Endpoint {
     final promises = await Promise.db.find(
       session,
       where: (t) =>
-          t.creatorUserId.equals(authUserId) |
+          (t.creatorUserId.equals(authUserId) &
+              t.parentPromiseId.equals(null)) |
           t.recipientUserId.equals(authUserId) |
-          (t.recipientUserId.equals(null) & t.promisedTo.ilike(userEmail)),
+          (t.recipientUserId.equals(null) &
+              t.isGroupParent.equals(false) &
+              t.promisedTo.ilike(userEmail)),
       orderBy: (t) => t.createdAt.desc(),
     );
 
-    // Auto-bind recipientUserId if matching by email
     for (final p in promises) {
       if (p.recipientUserId == null &&
+          !p.isGroupParent &&
           userEmail.isNotEmpty &&
           p.promisedTo.trim().toLowerCase() == userEmail) {
         final updated = p.copyWith(recipientUserId: authUserId);
@@ -177,7 +355,8 @@ class PromiseEndpoint extends Endpoint {
     final isCreator = promise.creatorUserId == authUserId;
     final isRecipient =
         promise.recipientUserId == authUserId ||
-        (promise.recipientUserId == null &&
+        (!promise.isGroupParent &&
+            promise.recipientUserId == null &&
             userEmail.isNotEmpty &&
             promise.promisedTo.trim().toLowerCase() == userEmail);
 
@@ -185,12 +364,79 @@ class PromiseEndpoint extends Endpoint {
       throw ArgumentError('You do not have access to this promise.');
     }
 
-    if (promise.recipientUserId == null && isRecipient) {
+    if (!promise.isGroupParent &&
+        promise.recipientUserId == null &&
+        isRecipient) {
       final updated = promise.copyWith(recipientUserId: authUserId);
       return await Promise.db.updateRow(session, updated);
     }
 
     return promise;
+  }
+
+  /// Retrieves children of a grouped promise.
+  Future<List<Promise>> getChildPromises(
+    Session session,
+    int parentPromiseId,
+  ) async {
+    final authUserId = _getAuthUserId(session);
+    final parent = await Promise.db.findById(session, parentPromiseId);
+    if (parent == null || parent.creatorUserId != authUserId) {
+      throw ArgumentError('Access denied or parent not found.');
+    }
+    return await Promise.db.find(
+      session,
+      where: (t) => t.parentPromiseId.equals(parentPromiseId),
+      orderBy: (t) => t.dueDate.asc(),
+    );
+  }
+
+  Future<void> _updateParentStatusIfNeeded(
+    Session session,
+    int? parentPromiseId,
+    Transaction tx,
+  ) async {
+    if (parentPromiseId == null) return;
+
+    final children = await Promise.db.find(
+      session,
+      where: (t) => t.parentPromiseId.equals(parentPromiseId),
+      transaction: tx,
+    );
+
+    if (children.isEmpty) return;
+
+    bool allCompleted = true;
+    bool allPending = true;
+
+    for (final child in children) {
+      if (child.status != 'completed') {
+        allCompleted = false;
+      }
+      if (child.status != 'pending') {
+        allPending = false;
+      }
+    }
+
+    String newStatus = 'in_progress';
+    if (allCompleted) {
+      newStatus = 'completed';
+    } else if (allPending) {
+      newStatus = 'pending';
+    }
+
+    final parent = await Promise.db.findById(
+      session,
+      parentPromiseId,
+      transaction: tx,
+    );
+    if (parent != null && parent.status != newStatus) {
+      await Promise.db.updateRow(
+        session,
+        parent.copyWith(status: newStatus),
+        transaction: tx,
+      );
+    }
   }
 
   /// Retrieves activities for a promise after authorizing participant access.
@@ -299,6 +545,10 @@ class PromiseEndpoint extends Endpoint {
       throw ArgumentError('You are not a participant of this promise.');
     }
 
+    if (existing.isGroupParent) {
+      throw ArgumentError('Group promises cannot be manually confirmed.');
+    }
+
     // Role is derived on server, not trusted from client parameter
     final resolvedRole = isCreator ? 'creator' : 'recipient';
 
@@ -341,6 +591,12 @@ class PromiseEndpoint extends Endpoint {
         session,
         updatedPromise,
         transaction: tx,
+      );
+
+      await _updateParentStatusIfNeeded(
+        session,
+        savedPromise.parentPromiseId,
+        tx,
       );
 
       final activity = PromiseActivity(
@@ -414,10 +670,17 @@ class PromiseEndpoint extends Endpoint {
       throw ArgumentError('Completed promises cannot be changed.');
     }
 
+    if (existing.isGroupParent) {
+      throw ArgumentError(
+        'Group promises cannot be manually changed via requestChanges.',
+      );
+    }
+
     bool isCreator = existing.creatorUserId == authUserId;
     bool isRecipient =
         existing.recipientUserId == authUserId ||
-        (existing.recipientUserId == null &&
+        (!existing.isGroupParent &&
+            existing.recipientUserId == null &&
             userEmail.isNotEmpty &&
             existing.promisedTo.trim().toLowerCase() == userEmail);
 
@@ -441,6 +704,12 @@ class PromiseEndpoint extends Endpoint {
         session,
         updatedPromise,
         transaction: tx,
+      );
+
+      await _updateParentStatusIfNeeded(
+        session,
+        savedPromise.parentPromiseId,
+        tx,
       );
 
       final activity = PromiseActivity(
@@ -503,6 +772,12 @@ class PromiseEndpoint extends Endpoint {
       throw ArgumentError('Completed promises cannot be changed.');
     }
 
+    if (existing.isGroupParent) {
+      throw ArgumentError(
+        'Group promises cannot be manually changed via updatePromiseStatus.',
+      );
+    }
+
     if (cleanStatus == 'completed') {
       if (!existing.creatorConfirmed || !existing.recipientConfirmed) {
         throw ArgumentError(
@@ -522,6 +797,12 @@ class PromiseEndpoint extends Endpoint {
         session,
         updatedPromise,
         transaction: tx,
+      );
+
+      await _updateParentStatusIfNeeded(
+        session,
+        savedPromise.parentPromiseId,
+        tx,
       );
 
       String readableStatus = cleanStatus;

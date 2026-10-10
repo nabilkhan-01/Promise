@@ -12,3 +12,5 @@ fields:
   recipientConfirmed: bool, default=false
   creatorUserId: String?
   recipientUserId: String?
+  isGroupParent: bool, default=false
+  parentPromiseId: int?

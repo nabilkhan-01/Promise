@@ -433,6 +433,19 @@ class EndpointPromise extends _isc.EndpointRef {
         {'promise': promise},
       );
 
+  /// Creates a group of promises atomically.
+  _ida.Future<_izrd4uei.Promise> createGroupedPromise(
+    _izrd4uei.Promise parent,
+    List<_izrd4uei.Promise> children,
+  ) => caller.callServerEndpoint<_izrd4uei.Promise>(
+    'promise',
+    'createGroupedPromise',
+    {
+      'parent': parent,
+      'children': children,
+    },
+  );
+
   /// Retrieves promises relevant to the current authenticated user.
   _ida.Future<List<_izrd4uei.Promise>> getPromises() =>
       caller.callServerEndpoint<List<_izrd4uei.Promise>>(
@@ -447,6 +460,14 @@ class EndpointPromise extends _isc.EndpointRef {
         'promise',
         'getPromise',
         {'id': id},
+      );
+
+  /// Retrieves children of a grouped promise.
+  _ida.Future<List<_izrd4uei.Promise>> getChildPromises(int parentPromiseId) =>
+      caller.callServerEndpoint<List<_izrd4uei.Promise>>(
+        'promise',
+        'getChildPromises',
+        {'parentPromiseId': parentPromiseId},
       );
 
   /// Retrieves activities for a promise after authorizing participant access.

@@ -669,6 +669,31 @@ class Endpoints extends _is.EndpointDispatch {
                     params['promise'],
                   ),
         ),
+        'createGroupedPromise': _is.MethodConnector(
+          name: 'createGroupedPromise',
+          params: {
+            'parent': _is.ParameterDescription(
+              name: 'parent',
+              type: _is.getType<_ipgb4ryh.Promise>(),
+              nullable: false,
+            ),
+            'children': _is.ParameterDescription(
+              name: 'children',
+              type: _is.getType<List<_ipgb4ryh.Promise>>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['promise'] as _itrz4nk3.PromiseEndpoint)
+                  .createGroupedPromise(
+                    session,
+                    params['parent'],
+                    params['children'],
+                  ),
+        ),
         'getPromises': _is.MethodConnector(
           name: 'getPromises',
           params: {},
@@ -696,6 +721,25 @@ class Endpoints extends _is.EndpointDispatch {
                   .getPromise(
                     session,
                     params['id'],
+                  ),
+        ),
+        'getChildPromises': _is.MethodConnector(
+          name: 'getChildPromises',
+          params: {
+            'parentPromiseId': _is.ParameterDescription(
+              name: 'parentPromiseId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['promise'] as _itrz4nk3.PromiseEndpoint)
+                  .getChildPromises(
+                    session,
+                    params['parentPromiseId'],
                   ),
         ),
         'getActivities': _is.MethodConnector(
