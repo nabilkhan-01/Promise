@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:promise_client/promise_client.dart';
 import 'package:serverpod_auth_idp_flutter/serverpod_auth_idp_flutter.dart';
 import '../client.dart';
+import '../utils/deadline_utils.dart';
 import 'add_update_screen.dart';
 import 'request_changes_screen.dart';
 
@@ -203,10 +204,9 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
       'Dec',
     ];
     const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    final localDate = date.toLocal();
-    final weekday = weekdays[localDate.weekday - 1];
-    final month = months[localDate.month - 1];
-    return '$weekday, $month ${localDate.day}, ${localDate.year}';
+    final weekday = weekdays[date.weekday - 1];
+    final month = months[date.month - 1];
+    return '$weekday, $month ${date.day}, ${date.year}';
   }
 
   String _formatTime(DateTime time) {
@@ -447,7 +447,12 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
                             ),
                           ),
                           Text(
-                            _formatDate(_currentPromise.dueDate),
+                            _formatDate(
+                              DeadlineUtils.getDisplayDate(
+                                _currentPromise.dueDate,
+                                _currentPromise.dueTime != null,
+                              ),
+                            ),
                             style: theme.textTheme.bodyMedium,
                           ),
                           if (_currentPromise.dueTime != null) ...[
@@ -455,6 +460,54 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
                             Text(
                               'at ${_formatTime(_currentPromise.dueTime!)}',
                               style: theme.textTheme.bodyMedium,
+                            ),
+                          ],
+                          if (DeadlineUtils.getIndicatorText(
+                            _currentPromise,
+                          ).isNotEmpty) ...[
+                            const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color:
+                                    DeadlineUtils.getIndicatorText(
+                                          _currentPromise,
+                                        ) ==
+                                        'Overdue'
+                                    ? colorScheme.errorContainer
+                                    : (DeadlineUtils.getIndicatorText(
+                                                _currentPromise,
+                                              ) ==
+                                              'Due Today'
+                                          ? colorScheme.tertiaryContainer
+                                          : colorScheme
+                                                .surfaceContainerHighest),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                DeadlineUtils.getIndicatorText(
+                                  _currentPromise,
+                                ).toUpperCase(),
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color:
+                                      DeadlineUtils.getIndicatorText(
+                                            _currentPromise,
+                                          ) ==
+                                          'Overdue'
+                                      ? colorScheme.onErrorContainer
+                                      : (DeadlineUtils.getIndicatorText(
+                                                  _currentPromise,
+                                                ) ==
+                                                'Due Today'
+                                            ? colorScheme.onTertiaryContainer
+                                            : colorScheme.onSurfaceVariant),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10,
+                                ),
+                              ),
                             ),
                           ],
                         ],

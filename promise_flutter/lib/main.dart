@@ -9,6 +9,7 @@ import 'screens/friends_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/promise_preparation_screen.dart';
 import 'screens/sign_in_screen.dart';
+import 'utils/deadline_utils.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -314,11 +315,7 @@ class _PromiseHomePageState extends State<PromiseHomePage>
           s == 'in_progress' ||
           s == 'awaiting_confirmation';
     }).toList();
-    list.sort((a, b) {
-      final aDue = a.dueTime ?? a.dueDate;
-      final bDue = b.dueTime ?? b.dueDate;
-      return aDue.compareTo(bDue);
-    });
+    list.sort(DeadlineUtils.compareDeadlines);
     return list;
   }
 
@@ -671,10 +668,9 @@ class PromiseCard extends StatelessWidget {
       'Dec',
     ];
     const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    final localDate = date.toLocal();
-    final weekday = weekdays[localDate.weekday - 1];
-    final month = months[localDate.month - 1];
-    return '$weekday, $month ${localDate.day}, ${localDate.year}';
+    final weekday = weekdays[date.weekday - 1];
+    final month = months[date.month - 1];
+    return '$weekday, $month ${date.day}, ${date.year}';
   }
 
   String _formatTime(DateTime time) {
@@ -819,7 +815,12 @@ class PromiseCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    _formatDate(promise.dueDate),
+                    _formatDate(
+                      DeadlineUtils.getDisplayDate(
+                        promise.dueDate,
+                        promise.dueTime != null,
+                      ),
+                    ),
                     style: theme.textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w500,
                     ),
@@ -836,6 +837,40 @@ class PromiseCard extends StatelessWidget {
                       _formatTime(promise.dueTime!),
                       style: theme.textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                  if (DeadlineUtils.getIndicatorText(promise).isNotEmpty) ...[
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color:
+                            DeadlineUtils.getIndicatorText(promise) == 'Overdue'
+                            ? colorScheme.errorContainer
+                            : (DeadlineUtils.getIndicatorText(promise) ==
+                                      'Due Today'
+                                  ? colorScheme.tertiaryContainer
+                                  : colorScheme.surfaceContainerHighest),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        DeadlineUtils.getIndicatorText(promise).toUpperCase(),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color:
+                              DeadlineUtils.getIndicatorText(promise) ==
+                                  'Overdue'
+                              ? colorScheme.onErrorContainer
+                              : (DeadlineUtils.getIndicatorText(promise) ==
+                                        'Due Today'
+                                    ? colorScheme.onTertiaryContainer
+                                    : colorScheme.onSurfaceVariant),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 9,
+                        ),
                       ),
                     ),
                   ],

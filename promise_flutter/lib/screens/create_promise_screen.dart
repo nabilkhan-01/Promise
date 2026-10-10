@@ -143,11 +143,11 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
       _isLoading = true;
     });
 
-    final dueDateUtc = DateTime(
+    final dueDateUtc = DateTime.utc(
       _selectedDate!.year,
       _selectedDate!.month,
       _selectedDate!.day,
-    ).toUtc();
+    );
 
     DateTime? dueTimeUtc;
     if (_selectedTime != null) {
