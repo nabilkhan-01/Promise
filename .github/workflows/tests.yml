@@ -14,6 +14,8 @@ jobs:
       SERVERPOD_PASSWORD_database: 'ci_test_db_password_1234567890'
       SERVERPOD_PASSWORD_redis: 'ci_test_redis_password_1234567890'
       SERVERPOD_PASSWORD_jwtRefreshTokenHashPepper: 'ci_test_jwt_pepper_12345678901234567890'
+      SERVERPOD_PASSWORD_jwtHmacSha512PrivateKey: 'ci_test_jwt_hmac_sha512_private_key_64_bytes_minimum_length_for_hmac_sha512_signing_key_1234567890'
+      SERVERPOD_PASSWORD_emailSecretHashPepper: 'ci_test_email_secret_pepper_12345678901234567890'
 
     steps:
       - uses: actions/checkout@v4.2.2
@@ -48,4 +50,4 @@ jobs:
 
       - name: Run tests
         working-directory: promise_server
-        run: dart test
+        run: dart test -j 1
