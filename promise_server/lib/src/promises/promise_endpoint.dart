@@ -1,6 +1,6 @@
-import 'package:serverpod/serverpod.dart';
 import 'package:serverpod_auth_idp_server/core.dart';
 import '../generated/protocol.dart';
+import '../generated/serverpod.dart';
 import '../notifications/notification_helper.dart';
 
 class PromiseEndpoint extends Endpoint {
@@ -37,6 +37,46 @@ class PromiseEndpoint extends Endpoint {
       userProfile = await session.authenticated?.userProfile(session);
     } catch (_) {}
     return userProfile?.email?.trim().toLowerCase() ?? '';
+  }
+
+  void _scheduleFutureCalls(Session session, Promise promise) {
+    if (promise.id == null ||
+        promise.recipientUserId == null ||
+        promise.isGroupParent) {
+      return;
+    }
+
+    try {
+      session.serverpod.futureCalls
+          .callWithDelay(const Duration(days: 7))
+          .promiseExpiry
+          .invoke(PromiseExpiryObject(promiseId: promise.id!));
+
+      final now = DateTime.now().toUtc();
+      DateTime effectiveEnd;
+      if (promise.dueTime != null) {
+        effectiveEnd = promise.dueTime!.toUtc();
+      } else {
+        effectiveEnd = DateTime.utc(
+          promise.dueDate.year,
+          promise.dueDate.month,
+          promise.dueDate.day,
+          23,
+          59,
+          59,
+        );
+      }
+
+      final reminderTime = effectiveEnd.subtract(const Duration(hours: 24));
+      final delay = reminderTime.difference(now);
+
+      if (delay.inSeconds > 0) {
+        session.serverpod.futureCalls
+            .callWithDelay(delay)
+            .deadlineReminder
+            .invoke(DeadlineReminderObject(promiseId: promise.id!));
+      }
+    } catch (_) {}
   }
 
   /// Creates a new promise for an accepted friend.
@@ -108,6 +148,8 @@ class PromiseEndpoint extends Endpoint {
       recipientUserId: recipientUserId,
       isGroupParent: false,
       parentPromiseId: null,
+      recipientAccepted: false,
+      recipientAcceptedAt: null,
     );
 
     return await session.db.transaction((tx) async {
@@ -117,10 +159,13 @@ class PromiseEndpoint extends Endpoint {
         transaction: tx,
       );
 
+      _scheduleFutureCalls(session, insertedPromise);
+
       final activity = PromiseActivity(
         promiseId: insertedPromise.id!,
         type: 'created',
-        message: 'Promise created by $creatorName',
+        message:
+            'Promise created by $creatorName (Awaiting recipient acceptance)',
         status: initialStatus,
         createdAt: DateTime.now().toUtc(),
       );
@@ -277,6 +322,8 @@ class PromiseEndpoint extends Endpoint {
           recipientUserId: recId,
           isGroupParent: false,
           parentPromiseId: insertedParent.id,
+          recipientAccepted: false,
+          recipientAcceptedAt: null,
         );
 
         final insertedChild = await Promise.db.insertRow(
@@ -284,6 +331,8 @@ class PromiseEndpoint extends Endpoint {
           childToInsert,
           transaction: tx,
         );
+
+        _scheduleFutureCalls(session, insertedChild);
 
         final childActivity = PromiseActivity(
           promiseId: insertedChild.id!,
@@ -439,6 +488,114 @@ class PromiseEndpoint extends Endpoint {
     }
   }
 
+  /// Accepts an unaccepted promise invitation.
+  Future<Promise> acceptPromise(Session session, int promiseId) async {
+    final authUserId = _getAuthUserId(session);
+    final existing = await getPromise(session, promiseId);
+    if (existing == null) {
+      throw ArgumentError('Promise with ID $promiseId not found.');
+    }
+
+    if (existing.recipientUserId != authUserId) {
+      throw ArgumentError(
+        'Only the assigned recipient can accept this promise.',
+      );
+    }
+
+    if (existing.recipientAccepted) {
+      return existing;
+    }
+
+    final userName = await _getUserDisplayName(session);
+    final now = DateTime.now().toUtc();
+
+    return await session.db.transaction((tx) async {
+      final updatedPromise = existing.copyWith(
+        recipientAccepted: true,
+        recipientAcceptedAt: now,
+      );
+
+      final savedPromise = await Promise.db.updateRow(
+        session,
+        updatedPromise,
+        transaction: tx,
+      );
+
+      final activity = PromiseActivity(
+        promiseId: promiseId,
+        type: 'accepted',
+        message: 'Promise invitation accepted by $userName',
+        status: existing.status,
+        createdAt: now,
+      );
+
+      await PromiseActivity.db.insertRow(
+        session,
+        activity,
+        transaction: tx,
+      );
+
+      if (savedPromise.creatorUserId != null) {
+        await NotificationHelper.createNotification(
+          session,
+          userId: savedPromise.creatorUserId!,
+          type: 'promise_updated',
+          title: 'Promise Accepted',
+          message: '$userName accepted your promise: "${savedPromise.title}"',
+          promiseId: promiseId,
+          transaction: tx,
+        );
+      }
+
+      final effectiveEnd = savedPromise.dueTime != null
+          ? savedPromise.dueTime!.toUtc()
+          : DateTime.utc(
+              savedPromise.dueDate.year,
+              savedPromise.dueDate.month,
+              savedPromise.dueDate.day,
+              23,
+              59,
+              59,
+            );
+
+      final reminderTime = effectiveEnd.subtract(const Duration(hours: 24));
+      if (now.isAfter(reminderTime) &&
+          now.isBefore(effectiveEnd) &&
+          savedPromise.status != 'completed') {
+        final userIds = [
+          savedPromise.creatorUserId,
+          savedPromise.recipientUserId,
+        ].whereType<String>().toSet();
+
+        for (final userId in userIds) {
+          final existingNotif = await AppNotification.db.findFirstRow(
+            session,
+            where: (t) =>
+                t.userId.equals(userId) &
+                t.promiseId.equals(promiseId) &
+                t.title.equals('Deadline Reminder'),
+            transaction: tx,
+          );
+
+          if (existingNotif == null) {
+            await NotificationHelper.createNotification(
+              session,
+              userId: userId,
+              type: 'promise_updated',
+              title: 'Deadline Reminder',
+              message:
+                  'Deadline reminder: "${savedPromise.title}" is approaching. Please check its due date.',
+              promiseId: promiseId,
+              transaction: tx,
+            );
+          }
+        }
+      }
+
+      return savedPromise;
+    });
+  }
+
   /// Retrieves activities for a promise after authorizing participant access.
   Future<List<PromiseActivity>> getActivities(
     Session session,
@@ -476,6 +633,12 @@ class PromiseEndpoint extends Endpoint {
 
     if (promise.status == 'completed') {
       throw ArgumentError('Completed promises cannot receive new updates.');
+    }
+
+    if (promise.recipientUserId != null && !promise.recipientAccepted) {
+      throw ArgumentError(
+        'Cannot add updates to a promise that has not been accepted by the recipient.',
+      );
     }
 
     final currentUserId = _getAuthUserId(session);
@@ -547,6 +710,12 @@ class PromiseEndpoint extends Endpoint {
 
     if (existing.isGroupParent) {
       throw ArgumentError('Group promises cannot be manually confirmed.');
+    }
+
+    if (existing.recipientUserId != null && !existing.recipientAccepted) {
+      throw ArgumentError(
+        'Cannot confirm completion on a promise that has not been accepted by the recipient.',
+      );
     }
 
     // Role is derived on server, not trusted from client parameter
@@ -676,6 +845,12 @@ class PromiseEndpoint extends Endpoint {
       );
     }
 
+    if (existing.recipientUserId != null && !existing.recipientAccepted) {
+      throw ArgumentError(
+        'Cannot request changes on a promise that has not been accepted by the recipient.',
+      );
+    }
+
     bool isCreator = existing.creatorUserId == authUserId;
     bool isRecipient =
         existing.recipientUserId == authUserId ||
@@ -775,6 +950,12 @@ class PromiseEndpoint extends Endpoint {
     if (existing.isGroupParent) {
       throw ArgumentError(
         'Group promises cannot be manually changed via updatePromiseStatus.',
+      );
+    }
+
+    if (existing.recipientUserId != null && !existing.recipientAccepted) {
+      throw ArgumentError(
+        'Cannot update status on a promise that has not been accepted by the recipient.',
       );
     }
 

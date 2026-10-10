@@ -29,9 +29,12 @@ abstract class Promise
     this.recipientUserId,
     bool? isGroupParent,
     this.parentPromiseId,
+    bool? recipientAccepted,
+    this.recipientAcceptedAt,
   }) : creatorConfirmed = creatorConfirmed ?? false,
        recipientConfirmed = recipientConfirmed ?? false,
-       isGroupParent = isGroupParent ?? false;
+       isGroupParent = isGroupParent ?? false,
+       recipientAccepted = recipientAccepted ?? true;
 
   factory Promise({
     int? id,
@@ -48,6 +51,8 @@ abstract class Promise
     String? recipientUserId,
     bool? isGroupParent,
     int? parentPromiseId,
+    bool? recipientAccepted,
+    DateTime? recipientAcceptedAt,
   }) = _PromiseImpl;
 
   factory Promise.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -82,6 +87,16 @@ abstract class Promise
           ? null
           : _isc.BoolJsonExtension.fromJson(jsonSerialization['isGroupParent']),
       parentPromiseId: jsonSerialization['parentPromiseId'] as int?,
+      recipientAccepted: jsonSerialization['recipientAccepted'] == null
+          ? null
+          : _isc.BoolJsonExtension.fromJson(
+              jsonSerialization['recipientAccepted'],
+            ),
+      recipientAcceptedAt: jsonSerialization['recipientAcceptedAt'] == null
+          ? null
+          : _isc.DateTimeJsonExtension.fromJson(
+              jsonSerialization['recipientAcceptedAt'],
+            ),
     );
   }
 
@@ -116,6 +131,10 @@ abstract class Promise
 
   int? parentPromiseId;
 
+  bool recipientAccepted;
+
+  DateTime? recipientAcceptedAt;
+
   /// Returns a shallow copy of this [Promise]
   /// with some or all fields replaced by the given arguments.
   @_isc.useResult
@@ -134,6 +153,8 @@ abstract class Promise
     String? recipientUserId,
     bool? isGroupParent,
     int? parentPromiseId,
+    bool? recipientAccepted,
+    DateTime? recipientAcceptedAt,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -153,6 +174,9 @@ abstract class Promise
       if (recipientUserId != null) 'recipientUserId': recipientUserId,
       'isGroupParent': isGroupParent,
       if (parentPromiseId != null) 'parentPromiseId': parentPromiseId,
+      'recipientAccepted': recipientAccepted,
+      if (recipientAcceptedAt != null)
+        'recipientAcceptedAt': recipientAcceptedAt?.toJson(),
     };
   }
 
@@ -174,6 +198,9 @@ abstract class Promise
       if (recipientUserId != null) 'recipientUserId': recipientUserId,
       'isGroupParent': isGroupParent,
       if (parentPromiseId != null) 'parentPromiseId': parentPromiseId,
+      'recipientAccepted': recipientAccepted,
+      if (recipientAcceptedAt != null)
+        'recipientAcceptedAt': recipientAcceptedAt?.toJson(),
     };
   }
 
@@ -201,6 +228,8 @@ class _PromiseImpl extends Promise {
     String? recipientUserId,
     bool? isGroupParent,
     int? parentPromiseId,
+    bool? recipientAccepted,
+    DateTime? recipientAcceptedAt,
   }) : super._(
          id: id,
          title: title,
@@ -216,6 +245,8 @@ class _PromiseImpl extends Promise {
          recipientUserId: recipientUserId,
          isGroupParent: isGroupParent,
          parentPromiseId: parentPromiseId,
+         recipientAccepted: recipientAccepted,
+         recipientAcceptedAt: recipientAcceptedAt,
        );
 
   /// Returns a shallow copy of this [Promise]
@@ -237,6 +268,8 @@ class _PromiseImpl extends Promise {
     Object? recipientUserId = _Undefined,
     bool? isGroupParent,
     Object? parentPromiseId = _Undefined,
+    bool? recipientAccepted,
+    Object? recipientAcceptedAt = _Undefined,
   }) {
     return Promise(
       id: id is int? ? id : this.id,
@@ -259,6 +292,10 @@ class _PromiseImpl extends Promise {
       parentPromiseId: parentPromiseId is int?
           ? parentPromiseId
           : this.parentPromiseId,
+      recipientAccepted: recipientAccepted ?? this.recipientAccepted,
+      recipientAcceptedAt: recipientAcceptedAt is DateTime?
+          ? recipientAcceptedAt
+          : this.recipientAcceptedAt,
     );
   }
 }

@@ -1,0 +1,4 @@
+class: AttachmentUploadDescription
+fields:
+  uploadDescription: String
+  path: String

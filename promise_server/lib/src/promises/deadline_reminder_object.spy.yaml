@@ -1,0 +1,3 @@
+class: DeadlineReminderObject
+fields:
+  promiseId: int

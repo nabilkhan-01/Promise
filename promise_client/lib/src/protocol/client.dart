@@ -20,6 +20,8 @@ import 'package:promise_client/src/protocol/greetings/greeting.dart'
     as _izk3ljs4;
 import 'package:promise_client/src/protocol/notifications/app_notification.dart'
     as _iim66qok;
+import 'package:promise_client/src/protocol/promises/attachment_upload_description.dart'
+    as _iusvgnae;
 import 'package:promise_client/src/protocol/promises/promise.dart' as _izrd4uei;
 import 'package:promise_client/src/protocol/promises/promise_activity.dart'
     as _irwpjxuh;
@@ -352,11 +354,11 @@ class EndpointAttachment extends _isc.EndpointRef {
   String get name => 'attachment';
 
   /// Initiates an upload flow by verifying participant access and generating an upload description.
-  _ida.Future<String?> getUploadDescription(
+  _ida.Future<_iusvgnae.AttachmentUploadDescription?> getUploadDescription(
     int promiseId,
     String fileName,
     int fileSize,
-  ) => caller.callServerEndpoint<String?>(
+  ) => caller.callServerEndpoint<_iusvgnae.AttachmentUploadDescription?>(
     'attachment',
     'getUploadDescription',
     {
@@ -405,9 +407,9 @@ class EndpointAttachment extends _isc.EndpointRef {
   /// Approves or rejects a pending attachment. Only the other participant can review.
   _ida.Future<_iomala89.PromiseAttachment> reviewAttachment(
     int attachmentId,
-    String decision,
+    String decision, {
     String? rejectionReason,
-  ) => caller.callServerEndpoint<_iomala89.PromiseAttachment>(
+  }) => caller.callServerEndpoint<_iomala89.PromiseAttachment>(
     'attachment',
     'reviewAttachment',
     {
@@ -468,6 +470,14 @@ class EndpointPromise extends _isc.EndpointRef {
         'promise',
         'getChildPromises',
         {'parentPromiseId': parentPromiseId},
+      );
+
+  /// Accepts an unaccepted promise invitation.
+  _ida.Future<_izrd4uei.Promise> acceptPromise(int promiseId) =>
+      caller.callServerEndpoint<_izrd4uei.Promise>(
+        'promise',
+        'acceptPromise',
+        {'promiseId': promiseId},
       );
 
   /// Retrieves activities for a promise after authorizing participant access.

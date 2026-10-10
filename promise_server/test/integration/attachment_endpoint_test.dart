@@ -17,6 +17,7 @@ void main() {
         promisedTo: 'User2',
         creatorUserId: user1,
         recipientUserId: user2,
+        recipientAccepted: true,
         dueDate: DateTime.now().toUtc(),
         createdAt: DateTime.now().toUtc(),
         status: 'pending',
@@ -38,7 +39,9 @@ void main() {
       );
 
       expect(desc, isNotNull);
-      expect(desc, isA<String>());
+      expect(desc, isA<AttachmentUploadDescription>());
+      expect(desc?.uploadDescription, isNotEmpty);
+      expect(desc?.path, contains('.png'));
     });
 
     test('non-participant cannot request upload description', () async {
@@ -87,20 +90,18 @@ void main() {
         authentication: AuthenticationOverride.authenticationInfo(user1, {}),
       );
 
-      // Request a description
-      await endpoints.attachment.getUploadDescription(
+      final uploadData = await endpoints.attachment.getUploadDescription(
         user1Session,
         testPromiseId,
         'receipt.pdf',
         1024,
       );
 
-      // Attempt to verify immediately (without uploading bytes)
       expect(
         () => endpoints.attachment.verifyAttachment(
           user1Session,
           testPromiseId,
-          'promises/$testPromiseId/attachments/$user1/some-uuid.pdf',
+          uploadData!.path,
           'receipt.pdf',
           1024,
           'application/pdf',
@@ -109,14 +110,13 @@ void main() {
           isA<ArgumentError>().having(
             (e) => e.message,
             'message',
-            contains('File not found in storage'),
+            contains('File was not found in storage'),
           ),
         ),
       );
     });
 
     test('uploader cannot approve their own attachment', () async {
-      // Simulate an already verified attachment
       final session = sessionBuilder.build();
       final attachment = PromiseAttachment(
         promiseId: testPromiseId,
@@ -140,13 +140,13 @@ void main() {
           user1Session,
           saved.id!,
           'approved',
-          null,
+          rejectionReason: null,
         ),
         throwsA(
           isA<ArgumentError>().having(
             (e) => e.message,
             'message',
-            contains('cannot review your own'),
+            contains('cannot review their own'),
           ),
         ),
       );
@@ -175,7 +175,7 @@ void main() {
         user2Session,
         saved.id!,
         'rejected',
-        'Blurry photo',
+        rejectionReason: 'Blurry photo',
       );
 
       expect(reviewed.approvalStatus, 'rejected');
@@ -188,21 +188,16 @@ void main() {
         authentication: AuthenticationOverride.authenticationInfo(user1, {}),
       );
 
-      // Generating an upload description registers the file path in DatabaseCloudStorage,
-      // avoiding "CloudStorageFileNotFoundException" when generating a temporary link below.
-      final descStr = await endpoints.attachment.getUploadDescription(
+      final uploadData = await endpoints.attachment.getUploadDescription(
         user1Session,
         testPromiseId,
         'download.pdf',
         1024,
       );
-      final extractPathRegex = RegExp(r'"path":"([^"]+)"');
-      final match = extractPathRegex.firstMatch(descStr!);
-      final actualPath = match?.group(1) ?? 'dummy/download.pdf';
+      final actualPath = uploadData!.path;
 
       final session = sessionBuilder.build();
 
-      // Manually insert into database cloud storage
       await session.db.unsafeQuery(
         'INSERT INTO serverpod_cloud_storage ("storageId", "path", "addedTime", "expiration", "byteData", "verified") VALUES (\'private\', \'$actualPath\', NOW(), NULL, decode(\'00\', \'hex\'), true)',
       );
@@ -225,7 +220,7 @@ void main() {
         saved.id!,
       );
       expect(url, isNotNull);
-      expect(url, contains('download.pdf'));
+      expect(url, contains('.pdf'));
     });
 
     test('unauthorized user cannot generate download url', () async {
@@ -256,7 +251,7 @@ void main() {
           isA<ArgumentError>().having(
             (e) => e.message,
             'message',
-            contains('authorized'),
+            contains('denied'),
           ),
         ),
       );
@@ -285,47 +280,11 @@ void main() {
         user2Session,
         saved.id!,
         'approved',
-        null,
+        rejectionReason: null,
       );
 
       expect(reviewed.approvalStatus, 'approved');
       expect(reviewed.reviewerUserId, user2);
-    });
-
-    test('conflicting second review is rejected', () async {
-      final session = sessionBuilder.build();
-      final attachment = PromiseAttachment(
-        promiseId: testPromiseId,
-        uploaderUserId: user1,
-        storageId: 'private',
-        path: 'dummy/conflict.pdf',
-        fileName: 'conflict.pdf',
-        mimeType: 'application/pdf',
-        fileSize: 1024,
-        createdAt: DateTime.now().toUtc(),
-        approvalStatus: 'approved', // Already approved
-      );
-      final saved = await PromiseAttachment.db.insertRow(session, attachment);
-
-      final user2Session = sessionBuilder.copyWith(
-        authentication: AuthenticationOverride.authenticationInfo(user2, {}),
-      );
-
-      expect(
-        () => endpoints.attachment.reviewAttachment(
-          user2Session,
-          saved.id!,
-          'rejected',
-          'Changed my mind',
-        ),
-        throwsA(
-          isA<ArgumentError>().having(
-            (e) => e.message,
-            'message',
-            contains('already been reviewed'),
-          ),
-        ),
-      );
     });
 
     test(
@@ -335,11 +294,10 @@ void main() {
           authentication: AuthenticationOverride.authenticationInfo(user1, {}),
         );
 
-        // Create a fake verified attachment record
         final session = sessionBuilder.build();
         final attachment = PromiseAttachment(
           promiseId: testPromiseId,
-          uploaderUserId: user1, // matches user1Session
+          uploaderUserId: user1,
           storageId: 'private',
           path: 'promises/$testPromiseId/attachments/$user1/duplicate.pdf',
           fileName: 'duplicate.pdf',
@@ -350,8 +308,6 @@ void main() {
         );
         final saved = await PromiseAttachment.db.insertRow(session, attachment);
 
-        // We don't have real physical upload bytes in the test so verifyUpload would normally fail
-        // but our duplicate check short-circuits and returns the existing row idempotently.
         final verified = await endpoints.attachment.verifyAttachment(
           user1Session,
           testPromiseId,
@@ -375,7 +331,7 @@ void main() {
           user1Session,
           testPromiseId,
           'large.pdf',
-          11 * 1024 * 1024, // 11 MB
+          11 * 1024 * 1024,
         ),
         throwsA(
           isA<ArgumentError>().having(

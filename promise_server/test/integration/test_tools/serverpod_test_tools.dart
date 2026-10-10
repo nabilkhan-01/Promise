@@ -17,16 +17,23 @@ import 'package:promise_server/src/generated/friends/friendship.dart'
     as _ikac19by;
 import 'package:promise_server/src/generated/friends/user_search_profile.dart'
     as _i36a1br3;
+import 'package:promise_server/src/generated/future_calls.dart' as _i2rtw6qf;
 import 'package:promise_server/src/generated/greetings/greeting.dart'
     as _i5mv1l2b;
 import 'package:promise_server/src/generated/notifications/app_notification.dart'
     as _iy76h3a0;
+import 'package:promise_server/src/generated/promises/attachment_upload_description.dart'
+    as _i962fubg;
+import 'package:promise_server/src/generated/promises/deadline_reminder_object.dart'
+    as _i7ah1uio;
 import 'package:promise_server/src/generated/promises/promise.dart'
     as _ipgb4ryh;
 import 'package:promise_server/src/generated/promises/promise_activity.dart'
     as _ih1o0d6l;
 import 'package:promise_server/src/generated/promises/promise_attachment.dart'
     as _ir9c0j66;
+import 'package:promise_server/src/generated/promises/promise_expiry_object.dart'
+    as _ij1k32us;
 import 'package:serverpod/serverpod.dart' as _is;
 import 'package:serverpod_auth_core_server/serverpod_auth_core_server.dart'
     as _iacs;
@@ -164,6 +171,8 @@ void withServerpod(
 }
 
 class TestEndpoints {
+  late final futureCalls = _FutureCalls();
+
   late final _JwtRefreshEndpoint jwtRefresh;
 
   late final _EmailIdpEndpoint emailIdp;
@@ -215,6 +224,12 @@ class _InternalTestEndpoints extends TestEndpoints
       serializationManager,
     );
   }
+}
+
+class _FutureCalls {
+  late final deadlineReminder = _DeadlineReminderFutureCall();
+
+  late final promiseExpiry = _PromiseExpiryFutureCall();
 }
 
 class _JwtRefreshEndpoint {
@@ -946,7 +961,7 @@ class _AttachmentEndpoint {
 
   final _is.SerializationManager _serializationManager;
 
-  _ida.Future<String?> getUploadDescription(
+  _ida.Future<_i962fubg.AttachmentUploadDescription?> getUploadDescription(
     _ist.TestSessionBuilder sessionBuilder,
     int promiseId,
     String fileName,
@@ -975,7 +990,7 @@ class _AttachmentEndpoint {
                   _localUniqueSession,
                   _localCallContext.arguments,
                 )
-                as _ida.Future<String?>);
+                as _ida.Future<_i962fubg.AttachmentUploadDescription?>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();
@@ -1089,9 +1104,9 @@ class _AttachmentEndpoint {
   _ida.Future<_ir9c0j66.PromiseAttachment> reviewAttachment(
     _ist.TestSessionBuilder sessionBuilder,
     int attachmentId,
-    String decision,
+    String decision, {
     String? rejectionReason,
-  ) async {
+  }) async {
     return _ist.callAwaitableFunctionAndHandleExceptions(() async {
       var _localUniqueSession =
           (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
@@ -1294,6 +1309,37 @@ class _PromiseEndpoint {
     });
   }
 
+  _ida.Future<_ipgb4ryh.Promise> acceptPromise(
+    _ist.TestSessionBuilder sessionBuilder,
+    int promiseId,
+  ) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'promise',
+            method: 'acceptPromise',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'promise',
+          methodName: 'acceptPromise',
+          parameters: _ist.testObjectToJson({'promiseId': promiseId}),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<_ipgb4ryh.Promise>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
   _ida.Future<List<_ih1o0d6l.PromiseActivity>> getActivities(
     _ist.TestSessionBuilder sessionBuilder,
     int promiseId,
@@ -1469,5 +1515,41 @@ class _PromiseEndpoint {
         await _localUniqueSession.close();
       }
     });
+  }
+}
+
+class _DeadlineReminderFutureCall {
+  Future<void> invoke(
+    _ist.TestSessionBuilder sessionBuilder,
+    _i7ah1uio.DeadlineReminderObject? object,
+  ) async {
+    var _localUniqueSession =
+        (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild();
+    try {
+      await _i2rtw6qf.DeadlineReminderInvokeFutureCall().invoke(
+        _localUniqueSession,
+        object,
+      );
+    } finally {
+      await _localUniqueSession.close();
+    }
+  }
+}
+
+class _PromiseExpiryFutureCall {
+  Future<void> invoke(
+    _ist.TestSessionBuilder sessionBuilder,
+    _ij1k32us.PromiseExpiryObject? object,
+  ) async {
+    var _localUniqueSession =
+        (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild();
+    try {
+      await _i2rtw6qf.PromiseExpiryInvokeFutureCall().invoke(
+        _localUniqueSession,
+        object,
+      );
+    } finally {
+      await _localUniqueSession.close();
+    }
   }
 }

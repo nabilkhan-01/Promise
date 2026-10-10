@@ -30,12 +30,10 @@ void main() {
     );
 
     test('getDisplayDate returns unshifted local date for new format', () {
-      // Creator selected Oct 14th date-only -> saved as Oct 14 00:00:00Z
       final utcDate = DateTime.utc(2026, 10, 14, 0, 0, 0);
 
       final displayDate = DeadlineUtils.getDisplayDate(utcDate, false);
 
-      // Should result in local Date of exactly year 2026, month 10, day 14
       expect(displayDate.year, 2026);
       expect(displayDate.month, 10);
       expect(displayDate.day, 14);
@@ -108,7 +106,6 @@ void main() {
 
         list.sort(DeadlineUtils.compareDeadlines);
 
-        // Sorting order should be: timedPromise -> dateOnlyPromise -> nextDayPromise
         expect(list[0].id, 2); // Timed: Oct 14 10:00:00
         expect(list[1].id, 1); // Date only: Oct 14 23:59:59
         expect(list[2].id, 3); // Next Day: Oct 15 23:59:59
@@ -117,6 +114,17 @@ void main() {
 
     test('getIndicatorText calculates correct status relative to now', () {
       final now = DateTime.now();
+
+      final unacceptedPromise = Promise(
+        id: 0,
+        title: 'Unaccepted',
+        promisedTo: 'User',
+        recipientUserId: 'user2',
+        recipientAccepted: false,
+        dueDate: DateTime.utc(now.year, now.month, now.day, 0, 0, 0),
+        createdAt: DateTime.now(),
+        status: 'pending',
+      );
 
       final overduePromise = Promise(
         id: 1,
@@ -143,9 +151,9 @@ void main() {
         status: 'pending',
       );
 
-      final upcomingPromise = Promise(
+      final dueTomorrowPromise = Promise(
         id: 3,
-        title: 'Upcoming',
+        title: 'Due Tomorrow',
         promisedTo: 'User',
         dueDate: DateTime.utc(
           now.year,
@@ -159,9 +167,16 @@ void main() {
         status: 'pending',
       );
 
+      expect(
+        DeadlineUtils.getIndicatorText(unacceptedPromise),
+        'Awaiting acceptance',
+      );
       expect(DeadlineUtils.getIndicatorText(overduePromise), 'Overdue');
-      expect(DeadlineUtils.getIndicatorText(dueTodayPromise), 'Due Today');
-      expect(DeadlineUtils.getIndicatorText(upcomingPromise), 'Upcoming');
+      expect(DeadlineUtils.getIndicatorText(dueTodayPromise), 'Due today');
+      expect(
+        DeadlineUtils.getIndicatorText(dueTomorrowPromise),
+        'Due tomorrow',
+      );
 
       final completedPromise = overduePromise.copyWith(status: 'completed');
       expect(DeadlineUtils.getIndicatorText(completedPromise), '');

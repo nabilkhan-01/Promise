@@ -844,32 +844,42 @@ class PromiseCard extends StatelessWidget {
                     const Spacer(),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
+                        horizontal: 8,
+                        vertical: 3,
                       ),
                       decoration: BoxDecoration(
                         color:
-                            DeadlineUtils.getIndicatorText(promise) == 'Overdue'
+                            DeadlineUtils.getIndicatorText(
+                              promise,
+                            ).contains('Overdue')
                             ? colorScheme.errorContainer
-                            : (DeadlineUtils.getIndicatorText(promise) ==
-                                      'Due Today'
+                            : (DeadlineUtils.getIndicatorText(
+                                        promise,
+                                      ).contains('Due today') ||
+                                      DeadlineUtils.getIndicatorText(
+                                        promise,
+                                      ).contains('Due tomorrow')
                                   ? colorScheme.tertiaryContainer
-                                  : colorScheme.surfaceContainerHighest),
-                        borderRadius: BorderRadius.circular(4),
+                                  : colorScheme.surfaceContainerHigh),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        DeadlineUtils.getIndicatorText(promise).toUpperCase(),
+                        DeadlineUtils.getIndicatorText(promise),
                         style: theme.textTheme.labelSmall?.copyWith(
                           color:
-                              DeadlineUtils.getIndicatorText(promise) ==
-                                  'Overdue'
+                              DeadlineUtils.getIndicatorText(
+                                promise,
+                              ).contains('Overdue')
                               ? colorScheme.onErrorContainer
-                              : (DeadlineUtils.getIndicatorText(promise) ==
-                                        'Due Today'
+                              : (DeadlineUtils.getIndicatorText(
+                                          promise,
+                                        ).contains('Due today') ||
+                                        DeadlineUtils.getIndicatorText(
+                                          promise,
+                                        ).contains('Due tomorrow')
                                     ? colorScheme.onTertiaryContainer
                                     : colorScheme.onSurfaceVariant),
                           fontWeight: FontWeight.bold,
-                          fontSize: 9,
                         ),
                       ),
                     ),

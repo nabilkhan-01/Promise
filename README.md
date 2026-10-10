@@ -1,4 +1,4 @@
-# Promise
+# Promise (v0.3.0)
 
 Promise helps people turn everyday agreements into clear, trackable, and documented commitments.
 
@@ -14,6 +14,7 @@ Every day, people make informal agreements — "I'll review your code by tomorro
 
 Promise solves this problem by turning everyday agreements into structured commitments with:
 - **Verified Participants:** Agreements made between accepted friends.
+- **Recipient Acceptance:** Recipient must explicitly accept an invitation before progress tracking begins.
 - **Clear Terms & Schedules:** Timezone-safe due dates and optional due times.
 - **Chronological History:** Auditable timeline of progress updates and status changes.
 - **Two-Party Confirmation:** Completion is only recognized when both Creator and Recipient confirm.
@@ -44,29 +45,33 @@ Promise solves this problem by turning everyday agreements into structured commi
 - **Friendship-Enforced Commitments:** Promises can only be created for accepted friends.
 - **Backend Authorization:** Friendship relationships and privacy rules are enforced on the server.
 
-### Promise Management & Tabbed Dashboard
+### Promise Management & Recipient Acceptance
+- **Recipient Acceptance Workflow:** Newly created promises start in an unaccepted state (`recipientAccepted: false`). The assigned recipient must explicitly accept the invitation before work operations (progress updates, completion confirmations, change requests, evidence uploads) can proceed.
+- **7-Day Invitation Expiry:** Unaccepted promise invitations automatically expire after 7 days via Serverpod FutureCalls (`PromiseExpiryFutureCall`). Expired invitations, activities, cloud storage objects, and recipient notifications are safely cleaned up.
 - **Create Promise:** Log new commitments specifying title, recipient friend, optional description, timezone-safe due date, and optional due time.
 - **Nested Group Promises:** Create parent container commitments with up to 10 sub-tasks assigned to different accepted friends in a single atomic database transaction.
 - **Derived Parent Progress:** Parent status is automatically derived from its children (`pending` -> `in_progress` -> `completed` when all children are finished). Direct manual status overrides or completion on parents are strictly blocked.
 - **Timezone-Safe Deadlines:** Date-only deadlines are saved as UTC midnight (`DateTime.utc`) to prevent calendar date shifts across global timezones. Legacy records maintain backward-compatible local time rendering.
-- **PostgreSQL Persistence:** All promises, activities, attachments, notifications, and friendships are persisted in PostgreSQL via Serverpod ORM.
 - **Tabbed Dashboard:** Clean Material 3 dashboard organized into two sections:
-  - **Current (`pending`, `in_progress`, `awaiting_confirmation`):** Sorted strictly by nearest due date and due time first, with visual indicators (`OVERDUE`, `DUE TODAY`, `UPCOMING`).
+  - **Current (`pending`, `in_progress`, `awaiting_confirmation`):** Sorted strictly by nearest due date and due time first, with visual indicators (`Overdue by X days`, `Due today`, `Due tomorrow`, `Due Oct 14`, `Awaiting acceptance`).
   - **Completed (`completed`):** Archived commitments sorted newest first.
-  - Live section counts (e.g. `Current (2)`, `Completed (4)`) and custom empty state messages.
 - **Participant Authorization:** Serverpod backend verifies caller identity against creator and recipient IDs for all operations.
 
 ### Receipts & Private File Attachments
 - **Serverpod Private Storage:** Attach documents (PDFs) or images (PNG, JPEG) up to 10 MB per file.
 - **Authorized Uploads & Downloads:** Upload descriptions and 15-minute temporary download URLs are strictly restricted to authorized Promise participants.
+- **Upload Progress & UI Component:** Step-by-step progress feedback (`Preparing upload...` -> `Uploading {file}...` -> `Verifying attachment...` -> `Upload complete`) with linear progress indicators.
+- **Reusable `IndicatorIconButton` Component:** Null-safe, animated Material 3 button component (`promise_flutter/lib/widgets/indicator_icon_button.dart`) with smooth `AnimatedSwitcher` transitions between normal, loading spinner, and success checkmark states.
 - **Cross-Party Review:** Non-uploading participants can approve or reject submitted receipts with optional rejection reasons.
 - **Preserved History:** Uploading a replacement receipt creates a new record while keeping previous review history intact for auditing.
 
-### Persistent In-App Notification System
+### Persistent In-App Notifications & Scheduled Reminders
 - **Serverpod + PostgreSQL Notifications:** Full in-app notification engine with persistent database storage (`AppNotification`).
 - **Event-Driven Notifications:** Triggered automatically on key events:
   - **Friends:** `friend_request`, `friend_request_accepted`
   - **Promises:** `promise_created`, `promise_updated`, `promise_status_changed`, `change_requested`, `confirmation_requested`, `promise_completed`
+- **Deduplicated Deadline Reminders:** Scheduled via Serverpod FutureCalls (`DeadlineReminderFutureCall`) 24 hours prior to effective deadlines. Notification database deduplication guarantees exactly one reminder per participant per deadline, resisting server retries or duplicate executions.
+- **Late Acceptance Handling:** Accepting a promise within 24 hours of its deadline triggers an immediate timezone-neutral deadline reminder (*"Deadline reminder: '$title' is approaching. Please check its due date."*).
 - **Dashboard Notification Bell:** App bar notification bell (`🔔`) featuring an unread count badge and periodic background refresh polling while active.
 - **`NotificationsScreen`:** Mobile-first screen grouped by `TODAY` and `EARLIER` with unread emphasis, type-specific visual icons, relative timestamps (`5m ago`), "Mark all as read", and tap-to-navigate directly to the referenced Promise or Friend Request.
 - **Authenticated Isolation:** Endpoint authorization ensures users can only read or update their own notifications.
@@ -87,42 +92,12 @@ Promise solves this problem by turning everyday agreements into structured commi
   - Second party confirmation transitions overall status to `Completed`.
 - **Terminal Completed State:** Once both parties confirm, a Promise enters `Completed` status and becomes strictly read-only. Further updates, confirmations, status changes, or change requests are permanently blocked.
 
-### Request Changes
-- **Request Changes Flow:** Either participant can request changes prior to final completion.
-- **Confirmation Reset:** Submitting a change request resets any existing completion confirmations and returns the Promise status to `In Progress`.
-- **History Record:** Change request reasons are recorded directly into the promise's activity timeline.
-
----
-
-## How It Works
-
-```text
-User
- ↓
-Create Promise / Group Promise
- ↓
-Accepted Friend(s)
- ↓
-Promise Details
- ├── Sub-Promises (for Group Parents)
- ├── Attachments & Evidence (PDF / Images with Approve / Reject Review)
- ├── Progress Updates (Pending / In Progress / Completed)
- ├── Status Tracking (Pending / In Progress / Awaiting Confirmation)
- ├── Activity History Timeline
- ├── Confirm Completion (Creator & Recipient)
- └── Request Changes (Resets Confirmations ──> In Progress)
-        ↓
- Two-Party Confirmation / Aggregate Sub-Promise Completion
-        ↓
-    Completed (Terminal & Read-Only)
-```
-
 ---
 
 ## Tech Stack
 
 ### Frontend
-- **Framework:** Flutter (Android-first cross-platform UI)
+- **Framework:** Flutter `0.3.0+3` (Android-first cross-platform UI)
 - **Language:** Dart
 - **Design System:** Material 3
 
@@ -137,22 +112,6 @@ Promise Details
 - **Identity Provider:** Serverpod Auth IDP (`serverpod_auth_idp_server`, `serverpod_auth_idp_flutter`)
 - **Email Delivery:** Brevo Transactional Email REST API (`https://api.brevo.com/v3/smtp/email`)
 - **Session Management:** `FlutterAuthSessionManager`
-
----
-
-## User-Facing Error Messaging
-Promise translates backend authentication and validation exceptions into friendly, actionable UI feedback:
-
-| Scenario | User Message |
-| :--- | :--- |
-| **Existing Account Sign Up** | *"An account with this email already exists. Please sign in instead."* (with direct **Sign In** action) |
-| **Wrong Credentials** | *"Incorrect email or password."* |
-| **Unregistered Email Reset** | *"No account found with this email address."* |
-| **Invalid Code** | *"That verification code is incorrect. Please try again."* |
-| **Expired Code** | *"That verification code has expired. Please request a new code."* |
-| **Disposable Email** | *"This email provider is not supported. Please use a permanent email address."* |
-| **Delivery Failure** | *"We couldn't send the verification email. Please try again."* |
-| **Network Error** | *"Unable to connect to Promise. Please check your connection and try again."* |
 
 ---
 
@@ -196,7 +155,7 @@ dart format .
 dart analyze
 
 # Run backend unit and integration tests
-dart test
+dart test -j 1
 ```
 
 ### Flutter Frontend (`promise_flutter`)
@@ -208,43 +167,46 @@ dart format .
 dart analyze
 
 # Run Flutter tests
-flutter test test/deadline_utils_test.dart
+flutter test
 ```
 
 ---
 
 ## Testing & Verification
 
-### Automated Backend Tests (`dart test`)
+### Automated Backend Tests (`dart test -j 1`)
 - [x] Disposable email validator unit tests (`disposable_email_validator_test.dart`).
 - [x] Email IDP endpoint integration tests (`email_idp_endpoint_test.dart`).
 - [x] Email registration duplicate detection integration tests (`email_idp_registration_test.dart`).
 - [x] Attachment endpoint security & upload integration tests (`attachment_endpoint_test.dart`).
 - [x] Group promise atomic creation & derived lifecycle integration tests (`group_promise_test.dart`).
-- [x] All server integration tests passing (`37/37` tests).
+- [x] Promise acceptance, 7-day expiry, and deduplicated deadline reminder integration tests (`promise_acceptance_and_future_calls_test.dart`).
+- [x] All server integration tests passing (**40 / 40** tests).
 
 ### Automated Flutter Tests (`flutter test`)
 - [x] Timezone-safe deadline rendering and sorting tests (`deadline_utils_test.dart`).
-- [x] All Flutter tests passing (`5/5` tests).
+- [x] `IndicatorIconButton` widget unit tests (`indicator_icon_button_test.dart`).
+- [x] All Flutter tests passing (**13 / 13** tests).
 
 ### Static Analysis
-- [x] `promise_server`: Clean (`No issues found!`).
-- [x] `promise_client`: Clean (`No issues found!`).
-- [x] `promise_flutter`: Clean (`No issues found!`).
+- [x] `promise_server`: Clean (**0 issues**).
+- [x] `promise_client`: Clean (**0 issues**).
+- [x] `promise_flutter`: Clean (**0 issues**).
 
 ---
 
-## Limitations & Deferred Features
+## Security & Known Limitations
 
+- **Security & Authorization:** Strict participant-level authorization on all promises, activities, attachments, and notifications. Sibling isolation is enforced on Group Promises so recipients can only access their assigned sub-tasks.
+- **7-Day Expiry & Reminders:** Background execution uses Serverpod FutureCalls verified via automated integration tests (`promise_acceptance_and_future_calls_test.dart`). Full production verification depends on Serverpod Cloud execution.
+- **Physical Device & Cloud Storage:** Upload verification and file picking have been tested on local embedded storage; physical Android device testing against live cloud storage will be performed manually.
 - **30-Day Attachment Pruning:** Automatic background cleanup of 30-day unreviewed attachments or orphaned files remains deferred (for post-hackathon) to avoid untested database cron jobs.
 - **Malware Scanning:** File uploads validate 10 MB limits and MIME types (`pdf`, `png`, `jpeg`), but do not perform deep byte-level antivirus scanning.
-- **Push Notifications:** Reminders currently use persistent in-app notifications; FCM push notifications are planned for future releases.
-- **Payment Gateway Integration:** Payment escrow and gateways are out of scope for the current MVP release.
 
 ---
 
 ## Status
 
-Promise is a full-stack Serverpod 4.0 + Flutter application. All core features — duplicate-account detection, Brevo email authentication, friends, time-safe promises, grouped multi-recipient promises, private receipt attachments, in-app notifications, and PostgreSQL persistence — are implemented, verified, and passing all automated test suites.
+Promise v0.3.0 is a full-stack Serverpod 4.0.3 + Flutter application. All core features — recipient acceptance, 7-day invitation expiry, deduplicated deadline reminders, duplicate-account detection, Brevo email authentication, friends, time-safe promises, grouped multi-recipient promises, private receipt attachments, `IndicatorIconButton` animated UI feedback, in-app notifications, and PostgreSQL persistence — are implemented, verified, and passing all automated test suites.
 
 **Repository:** [https://github.com/nabilkhan-01/Promise](https://github.com/nabilkhan-01/Promise)

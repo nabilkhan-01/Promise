@@ -2,12 +2,6 @@ import 'package:promise_client/promise_client.dart';
 
 class DeadlineUtils {
   /// Determines if a stored dueDate is from the legacy implementation.
-  ///
-  /// The legacy implementation stored date-only deadlines by constructing a local
-  /// midnight DateTime and calling `.toUtc()`. For timezones ahead of UTC,
-  /// this resulted in non-zero time components (e.g., IST +5:30 became 18:30:00Z
-  /// on the previous day).
-  /// The new implementation uses `.utc(...)` which results in exactly 00:00:00Z.
   static bool isLegacyDate(DateTime date) {
     if (!date.isUtc) return false;
     return date.hour != 0 ||
@@ -21,13 +15,8 @@ class DeadlineUtils {
   static DateTime getDisplayDate(DateTime dueDate, bool hasTime) {
     if (hasTime) return dueDate.toLocal();
 
-    // For legacy dates, we must fall back to local timezone conversion,
-    // assuming the viewer is in a similar timezone to the creator, which is
-    // the safest available heuristic.
     if (isLegacyDate(dueDate)) return dueDate.toLocal();
 
-    // For new date-only formats (UTC midnight), extract Y/M/D directly
-    // to a local DateTime to prevent any timezone shifting on render.
     return DateTime(dueDate.year, dueDate.month, dueDate.day);
   }
 
@@ -37,7 +26,6 @@ class DeadlineUtils {
       return promise.dueTime!.toLocal();
     }
 
-    // For date-only deadlines, the deadline is the very end of the display day.
     final displayDate = getDisplayDate(promise.dueDate, false);
     return DateTime(
       displayDate.year,
@@ -56,23 +44,52 @@ class DeadlineUtils {
     return aEnd.compareTo(bEnd);
   }
 
-  /// Returns an indicator string (Overdue, Due Today, Upcoming) based on the deadline.
+  /// Returns an indicator string (e.g. Awaiting acceptance, Overdue by 2 days, Due today, Due tomorrow, Due Oct 14) based on the deadline.
   static String getIndicatorText(Promise promise) {
     if (promise.status.toLowerCase() == 'completed') return '';
 
+    if (promise.recipientUserId != null && !promise.recipientAccepted) {
+      return 'Awaiting acceptance';
+    }
+
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     final effectiveEnd = getEffectiveEndDateTime(promise);
+    final dueDateOnly = DateTime(
+      effectiveEnd.year,
+      effectiveEnd.month,
+      effectiveEnd.day,
+    );
 
     if (effectiveEnd.isBefore(now)) {
+      final daysOverdue = today.difference(dueDateOnly).inDays;
+      if (daysOverdue > 1) {
+        return 'Overdue by $daysOverdue days';
+      }
       return 'Overdue';
     }
 
-    if (effectiveEnd.year == now.year &&
-        effectiveEnd.month == now.month &&
-        effectiveEnd.day == now.day) {
-      return 'Due Today';
+    final daysDiff = dueDateOnly.difference(today).inDays;
+    if (daysDiff == 0) {
+      return 'Due today';
+    } else if (daysDiff == 1) {
+      return 'Due tomorrow';
+    } else {
+      const months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
+      return 'Due ${months[dueDateOnly.month - 1]} ${dueDateOnly.day}';
     }
-
-    return 'Upcoming';
   }
 }

@@ -10,6 +10,7 @@
 // ignore_for_file: invalid_use_of_internal_member
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
+import 'package:promise_server/src/generated/future_calls.dart' as _i2rtw6qf;
 import 'package:promise_server/src/generated/promises/promise.dart'
     as _ipgb4ryh;
 import 'package:serverpod/serverpod.dart' as _is;
@@ -24,6 +25,7 @@ import '../greetings/greeting_endpoint.dart' as _il624ik7;
 import '../notifications/notification_endpoint.dart' as _ibyw8x7k;
 import '../promises/attachment_endpoint.dart' as _iz4cv5v8;
 import '../promises/promise_endpoint.dart' as _itrz4nk3;
+export 'future_calls.dart' show ServerpodFutureCallsGetter;
 
 class Endpoints extends _is.EndpointDispatch {
   @override
@@ -641,7 +643,7 @@ class Endpoints extends _is.EndpointDispatch {
                         session,
                         params['attachmentId'],
                         params['decision'],
-                        params['rejectionReason'],
+                        rejectionReason: params['rejectionReason'],
                       ),
         ),
       },
@@ -740,6 +742,25 @@ class Endpoints extends _is.EndpointDispatch {
                   .getChildPromises(
                     session,
                     params['parentPromiseId'],
+                  ),
+        ),
+        'acceptPromise': _is.MethodConnector(
+          name: 'acceptPromise',
+          params: {
+            'promiseId': _is.ParameterDescription(
+              name: 'promiseId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['promise'] as _itrz4nk3.PromiseEndpoint)
+                  .acceptPromise(
+                    session,
+                    params['promiseId'],
                   ),
         ),
         'getActivities': _is.MethodConnector(
@@ -885,5 +906,10 @@ class Endpoints extends _is.EndpointDispatch {
       ..initializeEndpoints(server);
     modules['serverpod_auth_core'] = _iacs.Endpoints()
       ..initializeEndpoints(server);
+  }
+
+  @override
+  _is.FutureCallDispatch? get futureCalls {
+    return _i2rtw6qf.FutureCalls();
   }
 }

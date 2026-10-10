@@ -136,6 +136,10 @@ void main() {
         createdParent.id!,
       );
 
+      // Children accept invitations
+      await endpoints.promise.acceptPromise(child1Session, children[0].id!);
+      await endpoints.promise.acceptPromise(child2Session, children[1].id!);
+
       // Confirm child 1 by both creator and recipient to complete it
       await endpoints.promise.confirmPromiseCompletion(
         creatorSession,
@@ -420,6 +424,8 @@ void main() {
           createdParent.id!,
         );
         final child1Db = children[0];
+
+        await endpoints.promise.acceptPromise(child1Session, child1Db.id!);
 
         await endpoints.promise.confirmPromiseCompletion(
           creatorSession,

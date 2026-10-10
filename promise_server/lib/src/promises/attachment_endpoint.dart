@@ -1,4 +1,3 @@
-import 'package:promise_server/src/notifications/notification_helper.dart';
 import 'package:serverpod/serverpod.dart';
 import 'package:serverpod_auth_idp_server/core.dart';
 import '../generated/protocol.dart';
@@ -17,22 +16,20 @@ class AttachmentEndpoint extends Endpoint {
 
   Future<Promise?> _getAuthorizedPromise(Session session, int promiseId) async {
     final authUserId = _getAuthUserId(session);
-
     final promise = await Promise.db.findById(session, promiseId);
+
     if (promise == null) return null;
 
-    final isCreator = promise.creatorUserId == authUserId;
-    final isRecipient = promise.recipientUserId == authUserId;
-
-    if (!isCreator && !isRecipient) {
-      return null;
+    if (promise.creatorUserId == authUserId ||
+        promise.recipientUserId == authUserId) {
+      return promise;
     }
 
-    return promise;
+    return null;
   }
 
   /// Initiates an upload flow by verifying participant access and generating an upload description.
-  Future<String?> getUploadDescription(
+  Future<AttachmentUploadDescription?> getUploadDescription(
     Session session,
     int promiseId,
     String fileName,
@@ -45,7 +42,12 @@ class AttachmentEndpoint extends Endpoint {
       throw ArgumentError('Promise not found or access denied.');
     }
 
-    // Server-side size validation limit to 10 MB
+    if (promise.recipientUserId != null && !promise.recipientAccepted) {
+      throw ArgumentError(
+        'Cannot upload attachments before the promise is accepted by the recipient.',
+      );
+    }
+
     if (fileSize > 10 * 1024 * 1024) {
       throw ArgumentError('File exceeds 10MB maximum size limit.');
     }
@@ -58,8 +60,7 @@ class AttachmentEndpoint extends Endpoint {
     final uniqueFileName = '${Uuid().v4()}.$ext';
     final path = 'promises/$promiseId/attachments/$authUserId/$uniqueFileName';
 
-    // We use UploadOptions to request that the storage provider enforce the size limit and prevent overwrite.
-    return await session.storage.createUploadDescription(
+    final uploadDescription = await session.storage.createUploadDescription(
       storageId: 'private',
       path: path,
       options: UploadOptions(
@@ -67,6 +68,11 @@ class AttachmentEndpoint extends Endpoint {
         contentLength: fileSize,
         preventOverwrite: true,
       ),
+    );
+
+    return AttachmentUploadDescription(
+      uploadDescription: uploadDescription,
+      path: path,
     );
   }
 
@@ -86,13 +92,16 @@ class AttachmentEndpoint extends Endpoint {
       throw ArgumentError('Promise not found or access denied.');
     }
 
-    // Path security: verify the path strictly belongs to the current user and promise
+    if (promise.recipientUserId != null && !promise.recipientAccepted) {
+      throw ArgumentError(
+        'Cannot verify attachments before the promise is accepted by the recipient.',
+      );
+    }
+
     if (!path.startsWith('promises/$promiseId/attachments/$authUserId/')) {
       throw ArgumentError('Invalid or unauthorized storage path.');
     }
 
-    // Duplicate Check: ensure we haven't already verified this path.
-    // If a user replays a successful verify call, do not create a duplicate row.
     final existing = await PromiseAttachment.db.findFirstRow(
       session,
       where: (t) => t.path.equals(path),
@@ -101,7 +110,6 @@ class AttachmentEndpoint extends Endpoint {
     if (existing != null) {
       if (existing.promiseId == promiseId &&
           existing.uploaderUserId == authUserId) {
-        // Idempotent return if the request is a legitimate retry for the same user/promise
         return existing;
       }
       throw ArgumentError(
@@ -116,16 +124,8 @@ class AttachmentEndpoint extends Endpoint {
 
     if (!isUploaded) {
       throw ArgumentError(
-        'Upload verification failed. File not found in storage.',
+        'Upload verification failed. File was not found in storage.',
       );
-    }
-
-    final ext = originalFileName.split('.').last.toLowerCase();
-    if (!['pdf', 'png', 'jpg', 'jpeg'].contains(ext)) {
-      throw ArgumentError('Only PDF, PNG, and JPEG files are supported.');
-    }
-    if (fileSize > 10 * 1024 * 1024) {
-      throw ArgumentError('File exceeds 10MB maximum size limit.');
     }
 
     final attachment = PromiseAttachment(
@@ -140,31 +140,7 @@ class AttachmentEndpoint extends Endpoint {
       approvalStatus: 'pending',
     );
 
-    return await session.db.transaction((tx) async {
-      final savedAttachment = await PromiseAttachment.db.insertRow(
-        session,
-        attachment,
-        transaction: tx,
-      );
-
-      final otherUserId = promise.creatorUserId == authUserId
-          ? promise.recipientUserId
-          : promise.creatorUserId;
-
-      if (otherUserId != null) {
-        await NotificationHelper.createNotification(
-          session,
-          userId: otherUserId,
-          type: 'promise_updated',
-          title: 'Evidence Uploaded',
-          message: 'A new attachment was uploaded to "${promise.title}".',
-          promiseId: promiseId,
-          transaction: tx,
-        );
-      }
-
-      return savedAttachment;
-    });
+    return await PromiseAttachment.db.insertRow(session, attachment);
   }
 
   /// Retrieves the list of attachments for a promise.
@@ -190,22 +166,19 @@ class AttachmentEndpoint extends Endpoint {
       session,
       attachmentId,
     );
-    if (attachment == null) return null;
+    if (attachment == null) {
+      throw ArgumentError('Attachment not found.');
+    }
 
     final promise = await _getAuthorizedPromise(session, attachment.promiseId);
     if (promise == null) {
-      throw ArgumentError('Not authorized to access this attachment.');
+      throw ArgumentError('Access denied.');
     }
 
     final uri = await session.storage.temporaryDownloadUrl(
       storageId: attachment.storageId,
       path: attachment.path,
-      options: TemporaryDownloadUrlOptions(
-        expirationDuration: const Duration(minutes: 15),
-        downloadFileName: attachment.fileName,
-      ),
     );
-
     return uri.toString();
   }
 
@@ -213,77 +186,45 @@ class AttachmentEndpoint extends Endpoint {
   Future<PromiseAttachment> reviewAttachment(
     Session session,
     int attachmentId,
-    String decision,
+    String decision, {
     String? rejectionReason,
-  ) async {
+  }) async {
     final authUserId = _getAuthUserId(session);
-    final cleanDecision = decision.trim().toLowerCase();
-
-    if (cleanDecision != 'approved' && cleanDecision != 'rejected') {
-      throw ArgumentError('Invalid decision. Must be approved or rejected.');
-    }
-
     final attachment = await PromiseAttachment.db.findById(
       session,
       attachmentId,
     );
+
     if (attachment == null) {
       throw ArgumentError('Attachment not found.');
     }
 
     final promise = await _getAuthorizedPromise(session, attachment.promiseId);
     if (promise == null) {
-      throw ArgumentError('Promise not found or access denied.');
+      throw ArgumentError('Access denied.');
+    }
+
+    if (promise.recipientUserId != null && !promise.recipientAccepted) {
+      throw ArgumentError(
+        'Cannot review attachments before the promise is accepted by the recipient.',
+      );
     }
 
     if (attachment.uploaderUserId == authUserId) {
-      throw ArgumentError('You cannot review your own attachment.');
+      throw ArgumentError('The uploader cannot review their own attachment.');
     }
 
-    if (attachment.approvalStatus != 'pending') {
-      throw ArgumentError('This attachment has already been reviewed.');
-    }
-
-    if (cleanDecision == 'rejected' &&
-        (rejectionReason == null || rejectionReason.trim().isEmpty)) {
-      throw ArgumentError(
-        'A reason must be provided when rejecting an attachment.',
-      );
+    if (!['approved', 'rejected'].contains(decision)) {
+      throw ArgumentError('Decision must be "approved" or "rejected".');
     }
 
     final updated = attachment.copyWith(
-      approvalStatus: cleanDecision,
+      approvalStatus: decision,
       reviewedAt: DateTime.now().toUtc(),
       reviewerUserId: authUserId,
-      rejectionReason: cleanDecision == 'rejected'
-          ? rejectionReason?.trim()
-          : null,
+      rejectionReason: decision == 'rejected' ? rejectionReason : null,
     );
 
-    return await session.db.transaction((tx) async {
-      final savedAttachment = await PromiseAttachment.db.updateRow(
-        session,
-        updated,
-        transaction: tx,
-      );
-
-      await NotificationHelper.createNotification(
-        session,
-        userId: attachment.uploaderUserId,
-        type: cleanDecision == 'approved'
-            ? 'promise_updated'
-            : 'change_requested',
-        title: cleanDecision == 'approved'
-            ? 'Attachment Approved'
-            : 'Attachment Rejected',
-        message: cleanDecision == 'approved'
-            ? 'Your attachment for "${promise.title}" was approved.'
-            : 'Your attachment for "${promise.title}" was rejected: ${rejectionReason?.trim()}',
-        promiseId: promise.id,
-        transaction: tx,
-      );
-
-      return savedAttachment;
-    });
+    return await PromiseAttachment.db.updateRow(session, updated);
   }
 }

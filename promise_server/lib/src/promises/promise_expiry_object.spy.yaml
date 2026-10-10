@@ -1,0 +1,3 @@
+class: PromiseExpiryObject
+fields:
+  promiseId: int

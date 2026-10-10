@@ -30,17 +30,23 @@ import 'friends/friendship.dart' as _ix1l50pg;
 import 'friends/user_search_profile.dart' as _i6kf6063;
 import 'greetings/greeting.dart' as _izw8z7ou;
 import 'notifications/app_notification.dart' as _ih0s0cfq;
+import 'promises/attachment_upload_description.dart' as _ipry8xt3;
+import 'promises/deadline_reminder_object.dart' as _iqhyy8ir;
 import 'promises/promise.dart' as _i9knynp5;
 import 'promises/promise_activity.dart' as _itvtbfbt;
 import 'promises/promise_attachment.dart' as _i64rwlud;
+import 'promises/promise_expiry_object.dart' as _iwkf95uh;
 export 'auth/account_not_found_exception.dart';
 export 'friends/friendship.dart';
 export 'friends/user_search_profile.dart';
 export 'greetings/greeting.dart';
 export 'notifications/app_notification.dart';
+export 'promises/attachment_upload_description.dart';
+export 'promises/deadline_reminder_object.dart';
 export 'promises/promise.dart';
 export 'promises/promise_activity.dart';
 export 'promises/promise_attachment.dart';
+export 'promises/promise_expiry_object.dart';
 export 'client.dart';
 
 class Protocol extends _isc.SerializationManager {
@@ -92,6 +98,12 @@ class Protocol extends _isc.SerializationManager {
     if (t == _ih0s0cfq.AppNotification) {
       return _ih0s0cfq.AppNotification.fromJson(data) as T;
     }
+    if (t == _ipry8xt3.AttachmentUploadDescription) {
+      return _ipry8xt3.AttachmentUploadDescription.fromJson(data) as T;
+    }
+    if (t == _iqhyy8ir.DeadlineReminderObject) {
+      return _iqhyy8ir.DeadlineReminderObject.fromJson(data) as T;
+    }
     if (t == _i9knynp5.Promise) {
       return _i9knynp5.Promise.fromJson(data) as T;
     }
@@ -100,6 +112,9 @@ class Protocol extends _isc.SerializationManager {
     }
     if (t == _i64rwlud.PromiseAttachment) {
       return _i64rwlud.PromiseAttachment.fromJson(data) as T;
+    }
+    if (t == _iwkf95uh.PromiseExpiryObject) {
+      return _iwkf95uh.PromiseExpiryObject.fromJson(data) as T;
     }
     if (t == _isc.getType<_i12ji7k4.AccountNotFoundException?>()) {
       return (data != null
@@ -121,6 +136,18 @@ class Protocol extends _isc.SerializationManager {
       return (data != null ? _ih0s0cfq.AppNotification.fromJson(data) : null)
           as T;
     }
+    if (t == _isc.getType<_ipry8xt3.AttachmentUploadDescription?>()) {
+      return (data != null
+              ? _ipry8xt3.AttachmentUploadDescription.fromJson(data)
+              : null)
+          as T;
+    }
+    if (t == _isc.getType<_iqhyy8ir.DeadlineReminderObject?>()) {
+      return (data != null
+              ? _iqhyy8ir.DeadlineReminderObject.fromJson(data)
+              : null)
+          as T;
+    }
     if (t == _isc.getType<_i9knynp5.Promise?>()) {
       return (data != null ? _i9knynp5.Promise.fromJson(data) : null) as T;
     }
@@ -130,6 +157,12 @@ class Protocol extends _isc.SerializationManager {
     }
     if (t == _isc.getType<_i64rwlud.PromiseAttachment?>()) {
       return (data != null ? _i64rwlud.PromiseAttachment.fromJson(data) : null)
+          as T;
+    }
+    if (t == _isc.getType<_iwkf95uh.PromiseExpiryObject?>()) {
+      return (data != null
+              ? _iwkf95uh.PromiseExpiryObject.fromJson(data)
+              : null)
           as T;
     }
     if (t == List<_ihsmdl90.UserSearchProfile>) {
@@ -178,9 +211,12 @@ class Protocol extends _isc.SerializationManager {
       _i6kf6063.UserSearchProfile => 'UserSearchProfile',
       _izw8z7ou.Greeting => 'Greeting',
       _ih0s0cfq.AppNotification => 'AppNotification',
+      _ipry8xt3.AttachmentUploadDescription => 'AttachmentUploadDescription',
+      _iqhyy8ir.DeadlineReminderObject => 'DeadlineReminderObject',
       _i9knynp5.Promise => 'Promise',
       _itvtbfbt.PromiseActivity => 'PromiseActivity',
       _i64rwlud.PromiseAttachment => 'PromiseAttachment',
+      _iwkf95uh.PromiseExpiryObject => 'PromiseExpiryObject',
       _ => null,
     };
   }
@@ -205,12 +241,18 @@ class Protocol extends _isc.SerializationManager {
         return 'Greeting';
       case _ih0s0cfq.AppNotification():
         return 'AppNotification';
+      case _ipry8xt3.AttachmentUploadDescription():
+        return 'AttachmentUploadDescription';
+      case _iqhyy8ir.DeadlineReminderObject():
+        return 'DeadlineReminderObject';
       case _i9knynp5.Promise():
         return 'Promise';
       case _itvtbfbt.PromiseActivity():
         return 'PromiseActivity';
       case _i64rwlud.PromiseAttachment():
         return 'PromiseAttachment';
+      case _iwkf95uh.PromiseExpiryObject():
+        return 'PromiseExpiryObject';
     }
     className = _iaic.Protocol().getClassNameForObject(data);
     if (className != null) {
@@ -248,6 +290,12 @@ class Protocol extends _isc.SerializationManager {
     if (dataClassName == 'AppNotification') {
       return deserialize<_ih0s0cfq.AppNotification>(data['data']);
     }
+    if (dataClassName == 'AttachmentUploadDescription') {
+      return deserialize<_ipry8xt3.AttachmentUploadDescription>(data['data']);
+    }
+    if (dataClassName == 'DeadlineReminderObject') {
+      return deserialize<_iqhyy8ir.DeadlineReminderObject>(data['data']);
+    }
     if (dataClassName == 'Promise') {
       return deserialize<_i9knynp5.Promise>(data['data']);
     }
@@ -256,6 +304,9 @@ class Protocol extends _isc.SerializationManager {
     }
     if (dataClassName == 'PromiseAttachment') {
       return deserialize<_i64rwlud.PromiseAttachment>(data['data']);
+    }
+    if (dataClassName == 'PromiseExpiryObject') {
+      return deserialize<_iwkf95uh.PromiseExpiryObject>(data['data']);
     }
     if (dataClassName.startsWith('serverpod_auth_idp.')) {
       data['className'] = dataClassName.substring(19);
