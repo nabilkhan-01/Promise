@@ -22,6 +22,7 @@ import '../endpoints/email_idp_endpoint.dart' as _ilutrrxn;
 import '../friends/friend_endpoint.dart' as _ib9qa24p;
 import '../greetings/greeting_endpoint.dart' as _il624ik7;
 import '../notifications/notification_endpoint.dart' as _ibyw8x7k;
+import '../promises/attachment_endpoint.dart' as _iz4cv5v8;
 import '../promises/promise_endpoint.dart' as _itrz4nk3;
 
 class Endpoints extends _is.EndpointDispatch {
@@ -56,6 +57,12 @@ class Endpoints extends _is.EndpointDispatch {
         ..initialize(
           server,
           'notification',
+          null,
+        ),
+      'attachment': _iz4cv5v8.AttachmentEndpoint()
+        ..initialize(
+          server,
+          'attachment',
           null,
         ),
       'promise': _itrz4nk3.PromiseEndpoint()
@@ -482,6 +489,160 @@ class Endpoints extends _is.EndpointDispatch {
               ) async =>
                   (endpoints['notification'] as _ibyw8x7k.NotificationEndpoint)
                       .markAllNotificationsRead(session),
+        ),
+      },
+    );
+    connectors['attachment'] = _is.EndpointConnector(
+      name: 'attachment',
+      endpoint: endpoints['attachment']!,
+      methodConnectors: {
+        'getUploadDescription': _is.MethodConnector(
+          name: 'getUploadDescription',
+          params: {
+            'promiseId': _is.ParameterDescription(
+              name: 'promiseId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+            'fileName': _is.ParameterDescription(
+              name: 'fileName',
+              type: _is.getType<String>(),
+              nullable: false,
+            ),
+            'fileSize': _is.ParameterDescription(
+              name: 'fileSize',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['attachment'] as _iz4cv5v8.AttachmentEndpoint)
+                      .getUploadDescription(
+                        session,
+                        params['promiseId'],
+                        params['fileName'],
+                        params['fileSize'],
+                      ),
+        ),
+        'verifyAttachment': _is.MethodConnector(
+          name: 'verifyAttachment',
+          params: {
+            'promiseId': _is.ParameterDescription(
+              name: 'promiseId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+            'path': _is.ParameterDescription(
+              name: 'path',
+              type: _is.getType<String>(),
+              nullable: false,
+            ),
+            'originalFileName': _is.ParameterDescription(
+              name: 'originalFileName',
+              type: _is.getType<String>(),
+              nullable: false,
+            ),
+            'fileSize': _is.ParameterDescription(
+              name: 'fileSize',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+            'mimeType': _is.ParameterDescription(
+              name: 'mimeType',
+              type: _is.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['attachment'] as _iz4cv5v8.AttachmentEndpoint)
+                      .verifyAttachment(
+                        session,
+                        params['promiseId'],
+                        params['path'],
+                        params['originalFileName'],
+                        params['fileSize'],
+                        params['mimeType'],
+                      ),
+        ),
+        'getAttachments': _is.MethodConnector(
+          name: 'getAttachments',
+          params: {
+            'promiseId': _is.ParameterDescription(
+              name: 'promiseId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['attachment'] as _iz4cv5v8.AttachmentEndpoint)
+                      .getAttachments(
+                        session,
+                        params['promiseId'],
+                      ),
+        ),
+        'getDownloadUrl': _is.MethodConnector(
+          name: 'getDownloadUrl',
+          params: {
+            'attachmentId': _is.ParameterDescription(
+              name: 'attachmentId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['attachment'] as _iz4cv5v8.AttachmentEndpoint)
+                      .getDownloadUrl(
+                        session,
+                        params['attachmentId'],
+                      ),
+        ),
+        'reviewAttachment': _is.MethodConnector(
+          name: 'reviewAttachment',
+          params: {
+            'attachmentId': _is.ParameterDescription(
+              name: 'attachmentId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+            'decision': _is.ParameterDescription(
+              name: 'decision',
+              type: _is.getType<String>(),
+              nullable: false,
+            ),
+            'rejectionReason': _is.ParameterDescription(
+              name: 'rejectionReason',
+              type: _is.getType<String?>(),
+              nullable: true,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async =>
+                  (endpoints['attachment'] as _iz4cv5v8.AttachmentEndpoint)
+                      .reviewAttachment(
+                        session,
+                        params['attachmentId'],
+                        params['decision'],
+                        params['rejectionReason'],
+                      ),
         ),
       },
     );

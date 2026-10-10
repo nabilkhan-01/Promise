@@ -1,0 +1,15 @@
+class: PromiseAttachment
+table: promise_attachment
+fields:
+  promiseId: int
+  uploaderUserId: String
+  storageId: String
+  path: String
+  fileName: String
+  mimeType: String
+  fileSize: int
+  createdAt: DateTime
+  approvalStatus: String
+  reviewedAt: DateTime?
+  reviewerUserId: String?
+  rejectionReason: String?

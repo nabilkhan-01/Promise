@@ -23,6 +23,8 @@ import 'package:promise_client/src/protocol/notifications/app_notification.dart'
 import 'package:promise_client/src/protocol/promises/promise.dart' as _izrd4uei;
 import 'package:promise_client/src/protocol/promises/promise_activity.dart'
     as _irwpjxuh;
+import 'package:promise_client/src/protocol/promises/promise_attachment.dart'
+    as _iomala89;
 import 'package:serverpod_auth_core_client/serverpod_auth_core_client.dart'
     as _iacc;
 import 'package:serverpod_auth_idp_client/serverpod_auth_idp_client.dart'
@@ -343,6 +345,80 @@ class EndpointNotification extends _isc.EndpointRef {
 }
 
 /// {@category Endpoint}
+class EndpointAttachment extends _isc.EndpointRef {
+  EndpointAttachment(_isc.EndpointCaller caller) : super(caller);
+
+  @override
+  String get name => 'attachment';
+
+  /// Initiates an upload flow by verifying participant access and generating an upload description.
+  _ida.Future<String?> getUploadDescription(
+    int promiseId,
+    String fileName,
+    int fileSize,
+  ) => caller.callServerEndpoint<String?>(
+    'attachment',
+    'getUploadDescription',
+    {
+      'promiseId': promiseId,
+      'fileName': fileName,
+      'fileSize': fileSize,
+    },
+  );
+
+  /// Verifies that an upload succeeded and creates the `PromiseAttachment` database record.
+  _ida.Future<_iomala89.PromiseAttachment> verifyAttachment(
+    int promiseId,
+    String path,
+    String originalFileName,
+    int fileSize,
+    String mimeType,
+  ) => caller.callServerEndpoint<_iomala89.PromiseAttachment>(
+    'attachment',
+    'verifyAttachment',
+    {
+      'promiseId': promiseId,
+      'path': path,
+      'originalFileName': originalFileName,
+      'fileSize': fileSize,
+      'mimeType': mimeType,
+    },
+  );
+
+  /// Retrieves the list of attachments for a promise.
+  _ida.Future<List<_iomala89.PromiseAttachment>> getAttachments(
+    int promiseId,
+  ) => caller.callServerEndpoint<List<_iomala89.PromiseAttachment>>(
+    'attachment',
+    'getAttachments',
+    {'promiseId': promiseId},
+  );
+
+  /// Generates a time-limited download URL for an attachment if authorized.
+  _ida.Future<String?> getDownloadUrl(int attachmentId) =>
+      caller.callServerEndpoint<String?>(
+        'attachment',
+        'getDownloadUrl',
+        {'attachmentId': attachmentId},
+      );
+
+  /// Approves or rejects a pending attachment. Only the other participant can review.
+  _ida.Future<_iomala89.PromiseAttachment> reviewAttachment(
+    int attachmentId,
+    String decision,
+    String? rejectionReason,
+  ) => caller.callServerEndpoint<_iomala89.PromiseAttachment>(
+    'attachment',
+    'reviewAttachment',
+    {
+      'attachmentId': attachmentId,
+      'decision': decision,
+      'rejectionReason': rejectionReason,
+    },
+  );
+}
+
+/// {@category Endpoint}
 class EndpointPromise extends _isc.EndpointRef {
   EndpointPromise(_isc.EndpointCaller caller) : super(caller);
 
@@ -483,6 +559,7 @@ class Client extends _isc.ServerpodClientShared {
     friend = EndpointFriend(this);
     greeting = EndpointGreeting(this);
     notification = EndpointNotification(this);
+    attachment = EndpointAttachment(this);
     promise = EndpointPromise(this);
     modules = Modules(this);
   }
@@ -497,6 +574,8 @@ class Client extends _isc.ServerpodClientShared {
 
   late final EndpointNotification notification;
 
+  late final EndpointAttachment attachment;
+
   late final EndpointPromise promise;
 
   late final Modules modules;
@@ -508,6 +587,7 @@ class Client extends _isc.ServerpodClientShared {
     'friend': friend,
     'greeting': greeting,
     'notification': notification,
+    'attachment': attachment,
     'promise': promise,
   };
 

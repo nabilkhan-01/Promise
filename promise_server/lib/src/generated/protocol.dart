@@ -19,6 +19,8 @@ import 'package:promise_server/src/generated/promises/promise.dart'
     as _ipgb4ryh;
 import 'package:promise_server/src/generated/promises/promise_activity.dart'
     as _ih1o0d6l;
+import 'package:promise_server/src/generated/promises/promise_attachment.dart'
+    as _ir9c0j66;
 import 'package:serverpod/protocol.dart' as _isp;
 import 'package:serverpod/serverpod.dart' as _is;
 import 'package:serverpod_auth_core_server/serverpod_auth_core_server.dart'
@@ -32,6 +34,7 @@ import 'greetings/greeting.dart' as _izw8z7ou;
 import 'notifications/app_notification.dart' as _ih0s0cfq;
 import 'promises/promise.dart' as _i9knynp5;
 import 'promises/promise_activity.dart' as _itvtbfbt;
+import 'promises/promise_attachment.dart' as _i64rwlud;
 export 'auth/account_not_found_exception.dart';
 export 'friends/friendship.dart';
 export 'friends/user_search_profile.dart';
@@ -39,6 +42,7 @@ export 'greetings/greeting.dart';
 export 'notifications/app_notification.dart';
 export 'promises/promise.dart';
 export 'promises/promise_activity.dart';
+export 'promises/promise_attachment.dart';
 
 class Protocol extends _is.DatabaseSerializationManager {
   Protocol._();
@@ -307,6 +311,96 @@ class Protocol extends _is.DatabaseSerializationManager {
       indexes: [],
       managed: true,
     ),
+    _isp.TableDefinition(
+      name: 'promise_attachment',
+      dartName: 'PromiseAttachment',
+      schema: 'public',
+      module: 'promise',
+      columns: [
+        _isp.ColumnDefinition(
+          name: 'id',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: false,
+          dartType: 'int?',
+          columnDefault: 'serial',
+        ),
+        _isp.ColumnDefinition(
+          name: 'promiseId',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: false,
+          dartType: 'int',
+        ),
+        _isp.ColumnDefinition(
+          name: 'uploaderUserId',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+        ),
+        _isp.ColumnDefinition(
+          name: 'storageId',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+        ),
+        _isp.ColumnDefinition(
+          name: 'path',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+        ),
+        _isp.ColumnDefinition(
+          name: 'fileName',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+        ),
+        _isp.ColumnDefinition(
+          name: 'mimeType',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+        ),
+        _isp.ColumnDefinition(
+          name: 'fileSize',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: false,
+          dartType: 'int',
+        ),
+        _isp.ColumnDefinition(
+          name: 'createdAt',
+          columnType: _isp.ColumnType.timestampWithoutTimeZone,
+          isNullable: false,
+          dartType: 'DateTime',
+        ),
+        _isp.ColumnDefinition(
+          name: 'approvalStatus',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+        ),
+        _isp.ColumnDefinition(
+          name: 'reviewedAt',
+          columnType: _isp.ColumnType.timestampWithoutTimeZone,
+          isNullable: true,
+          dartType: 'DateTime?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'reviewerUserId',
+          columnType: _isp.ColumnType.text,
+          isNullable: true,
+          dartType: 'String?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'rejectionReason',
+          columnType: _isp.ColumnType.text,
+          isNullable: true,
+          dartType: 'String?',
+        ),
+      ],
+      foreignKeys: [],
+      indexes: [],
+      managed: true,
+    ),
     ..._iais.Protocol.targetTableDefinitions,
     ..._iacs.Protocol.targetTableDefinitions,
     ..._isp.Protocol.targetTableDefinitions,
@@ -360,6 +454,9 @@ class Protocol extends _is.DatabaseSerializationManager {
     if (t == _itvtbfbt.PromiseActivity) {
       return _itvtbfbt.PromiseActivity.fromJson(data) as T;
     }
+    if (t == _i64rwlud.PromiseAttachment) {
+      return _i64rwlud.PromiseAttachment.fromJson(data) as T;
+    }
     if (t == _is.getType<_i12ji7k4.AccountNotFoundException?>()) {
       return (data != null
               ? _i12ji7k4.AccountNotFoundException.fromJson(data)
@@ -387,6 +484,10 @@ class Protocol extends _is.DatabaseSerializationManager {
       return (data != null ? _itvtbfbt.PromiseActivity.fromJson(data) : null)
           as T;
     }
+    if (t == _is.getType<_i64rwlud.PromiseAttachment?>()) {
+      return (data != null ? _i64rwlud.PromiseAttachment.fromJson(data) : null)
+          as T;
+    }
     if (t == List<_i36a1br3.UserSearchProfile>) {
       return (data as List)
               .map((e) => deserialize<_i36a1br3.UserSearchProfile>(e))
@@ -396,6 +497,12 @@ class Protocol extends _is.DatabaseSerializationManager {
     if (t == List<_iy76h3a0.AppNotification>) {
       return (data as List)
               .map((e) => deserialize<_iy76h3a0.AppNotification>(e))
+              .toList()
+          as T;
+    }
+    if (t == List<_ir9c0j66.PromiseAttachment>) {
+      return (data as List)
+              .map((e) => deserialize<_ir9c0j66.PromiseAttachment>(e))
               .toList()
           as T;
     }
@@ -432,6 +539,7 @@ class Protocol extends _is.DatabaseSerializationManager {
       _ih0s0cfq.AppNotification => 'AppNotification',
       _i9knynp5.Promise => 'Promise',
       _itvtbfbt.PromiseActivity => 'PromiseActivity',
+      _i64rwlud.PromiseAttachment => 'PromiseAttachment',
       _ => null,
     };
   }
@@ -460,6 +568,8 @@ class Protocol extends _is.DatabaseSerializationManager {
         return 'Promise';
       case _itvtbfbt.PromiseActivity():
         return 'PromiseActivity';
+      case _i64rwlud.PromiseAttachment():
+        return 'PromiseAttachment';
     }
     className = _iais.Protocol().getClassNameForObject(data);
     if (className != null) {
@@ -506,6 +616,9 @@ class Protocol extends _is.DatabaseSerializationManager {
     }
     if (dataClassName == 'PromiseActivity') {
       return deserialize<_itvtbfbt.PromiseActivity>(data['data']);
+    }
+    if (dataClassName == 'PromiseAttachment') {
+      return deserialize<_i64rwlud.PromiseAttachment>(data['data']);
     }
     if (dataClassName.startsWith('serverpod_auth_idp.')) {
       data['className'] = dataClassName.substring(19);
@@ -556,6 +669,8 @@ class Protocol extends _is.DatabaseSerializationManager {
         return _i9knynp5.Promise.t;
       case _itvtbfbt.PromiseActivity:
         return _itvtbfbt.PromiseActivity.t;
+      case _i64rwlud.PromiseAttachment:
+        return _i64rwlud.PromiseAttachment.t;
     }
     return null;
   }

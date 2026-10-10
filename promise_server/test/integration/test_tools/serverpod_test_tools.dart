@@ -25,6 +25,8 @@ import 'package:promise_server/src/generated/promises/promise.dart'
     as _ipgb4ryh;
 import 'package:promise_server/src/generated/promises/promise_activity.dart'
     as _ih1o0d6l;
+import 'package:promise_server/src/generated/promises/promise_attachment.dart'
+    as _ir9c0j66;
 import 'package:serverpod/serverpod.dart' as _is;
 import 'package:serverpod_auth_core_server/serverpod_auth_core_server.dart'
     as _iacs;
@@ -172,6 +174,8 @@ class TestEndpoints {
 
   late final _NotificationEndpoint notification;
 
+  late final _AttachmentEndpoint attachment;
+
   late final _PromiseEndpoint promise;
 }
 
@@ -199,6 +203,10 @@ class _InternalTestEndpoints extends TestEndpoints
       serializationManager,
     );
     notification = _NotificationEndpoint(
+      endpoints,
+      serializationManager,
+    );
+    attachment = _AttachmentEndpoint(
       endpoints,
       serializationManager,
     );
@@ -920,6 +928,194 @@ class _NotificationEndpoint {
                   _localCallContext.arguments,
                 )
                 as _ida.Future<int>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+}
+
+class _AttachmentEndpoint {
+  _AttachmentEndpoint(
+    this._endpointDispatch,
+    this._serializationManager,
+  );
+
+  final _is.EndpointDispatch _endpointDispatch;
+
+  final _is.SerializationManager _serializationManager;
+
+  _ida.Future<String?> getUploadDescription(
+    _ist.TestSessionBuilder sessionBuilder,
+    int promiseId,
+    String fileName,
+    int fileSize,
+  ) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'attachment',
+            method: 'getUploadDescription',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'attachment',
+          methodName: 'getUploadDescription',
+          parameters: _ist.testObjectToJson({
+            'promiseId': promiseId,
+            'fileName': fileName,
+            'fileSize': fileSize,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<String?>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _ida.Future<_ir9c0j66.PromiseAttachment> verifyAttachment(
+    _ist.TestSessionBuilder sessionBuilder,
+    int promiseId,
+    String path,
+    String originalFileName,
+    int fileSize,
+    String mimeType,
+  ) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'attachment',
+            method: 'verifyAttachment',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'attachment',
+          methodName: 'verifyAttachment',
+          parameters: _ist.testObjectToJson({
+            'promiseId': promiseId,
+            'path': path,
+            'originalFileName': originalFileName,
+            'fileSize': fileSize,
+            'mimeType': mimeType,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<_ir9c0j66.PromiseAttachment>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _ida.Future<List<_ir9c0j66.PromiseAttachment>> getAttachments(
+    _ist.TestSessionBuilder sessionBuilder,
+    int promiseId,
+  ) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'attachment',
+            method: 'getAttachments',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'attachment',
+          methodName: 'getAttachments',
+          parameters: _ist.testObjectToJson({'promiseId': promiseId}),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<List<_ir9c0j66.PromiseAttachment>>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _ida.Future<String?> getDownloadUrl(
+    _ist.TestSessionBuilder sessionBuilder,
+    int attachmentId,
+  ) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'attachment',
+            method: 'getDownloadUrl',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'attachment',
+          methodName: 'getDownloadUrl',
+          parameters: _ist.testObjectToJson({'attachmentId': attachmentId}),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<String?>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _ida.Future<_ir9c0j66.PromiseAttachment> reviewAttachment(
+    _ist.TestSessionBuilder sessionBuilder,
+    int attachmentId,
+    String decision,
+    String? rejectionReason,
+  ) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'attachment',
+            method: 'reviewAttachment',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'attachment',
+          methodName: 'reviewAttachment',
+          parameters: _ist.testObjectToJson({
+            'attachmentId': attachmentId,
+            'decision': decision,
+            'rejectionReason': rejectionReason,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<_ir9c0j66.PromiseAttachment>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();

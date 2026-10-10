@@ -1,6 +1,9 @@
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:promise_client/promise_client.dart';
 import 'package:serverpod_auth_idp_flutter/serverpod_auth_idp_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../client.dart';
 import '../utils/deadline_utils.dart';
 import 'add_update_screen.dart';
@@ -9,11 +12,13 @@ import 'request_changes_screen.dart';
 class PromiseDetailsScreen extends StatefulWidget {
   final Promise promise;
   final List<PromiseActivity>? initialActivities;
+  final List<PromiseAttachment>? initialAttachments;
 
   const PromiseDetailsScreen({
     super.key,
     required this.promise,
     this.initialActivities,
+    this.initialAttachments,
   });
 
   @override
@@ -23,6 +28,7 @@ class PromiseDetailsScreen extends StatefulWidget {
 class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
   late Promise _currentPromise;
   List<PromiseActivity> _activities = [];
+  List<PromiseAttachment> _attachments = [];
   bool _isLoadingActivities = false;
   bool _isUpdatingStatus = false;
   String? _activityError;
@@ -32,8 +38,9 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
   void initState() {
     super.initState();
     _currentPromise = widget.promise;
-    if (widget.initialActivities != null) {
+    if (widget.initialActivities != null && widget.initialAttachments != null) {
       _activities = widget.initialActivities!;
+      _attachments = widget.initialAttachments!;
       _isLoadingActivities = false;
     } else {
       _loadData(showLoading: true);
@@ -52,6 +59,7 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
       final promiseId = _currentPromise.id!;
       final updatedPromise = await client.promise.getPromise(promiseId);
       final activities = await client.promise.getActivities(promiseId);
+      final attachments = await client.attachment.getAttachments(promiseId);
 
       if (!mounted) return;
 
@@ -60,6 +68,7 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
           _currentPromise = updatedPromise;
         }
         _activities = activities;
+        _attachments = attachments;
         _isLoadingActivities = false;
         _activityError = null;
       });
@@ -157,6 +166,190 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
+    }
+  }
+
+  Future<void> _uploadAttachment() async {
+    if (_currentPromise.status == 'completed' || _isUpdatingStatus) return;
+
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg'],
+      );
+
+      if (result.isEmpty) return;
+
+      final file = result.first;
+      if (file.path == null) return;
+
+      final fileSize = file.lengthSync() ?? await file.length();
+      if (fileSize == null) return;
+
+      if (fileSize > 10 * 1024 * 1024) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('File exceeds 10MB maximum size limit.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+        return;
+      }
+
+      setState(() {
+        _isUpdatingStatus = true;
+      });
+
+      final uploadDescUrl = await client.attachment.getUploadDescription(
+        _currentPromise.id!,
+        file.name,
+        fileSize,
+      );
+
+      if (uploadDescUrl == null) {
+        throw Exception('Failed to retrieve upload description.');
+      }
+
+      final fileObj = File(file.path!);
+      final stream = fileObj.openRead();
+
+      final uploader = FileUploader(uploadDescUrl);
+      final uploadSuccess = await uploader.upload(stream, fileSize);
+
+      if (!uploadSuccess) {
+        throw Exception('Failed to upload file bytes.');
+      }
+
+      String mimeType = 'application/octet-stream';
+      final ext = file.extension?.toLowerCase();
+      if (ext == 'pdf') mimeType = 'application/pdf';
+      if (ext == 'png') mimeType = 'image/png';
+      if (ext == 'jpg' || ext == 'jpeg') mimeType = 'image/jpeg';
+
+      await client.attachment.verifyAttachment(
+        _currentPromise.id!,
+        uploadDescUrl,
+        file.name,
+        fileSize,
+        mimeType,
+      );
+
+      _hasChanges = true;
+      _loadData(showLoading: false);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Attachment uploaded successfully.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to upload attachment.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdatingStatus = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _downloadAttachment(int attachmentId) async {
+    try {
+      final url = await client.attachment.getDownloadUrl(attachmentId);
+      if (url != null) {
+        final uri = Uri.parse(url);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else {
+          throw Exception('Could not launch URL');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to download attachment.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _reviewAttachment(int attachmentId, String decision) async {
+    if (_currentPromise.status == 'completed' || _isUpdatingStatus) return;
+
+    String? rejectionReason;
+    if (decision == 'rejected') {
+      rejectionReason = await showDialog<String>(
+        context: context,
+        builder: (context) {
+          final controller = TextEditingController();
+          return AlertDialog(
+            title: const Text('Reject Attachment'),
+            content: TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                labelText: 'Reason for rejection',
+                hintText: 'e.g., Document is unreadable',
+              ),
+              textCapitalization: TextCapitalization.sentences,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, controller.text),
+                child: const Text('Reject'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (rejectionReason == null || rejectionReason.trim().isEmpty) return;
+    }
+
+    setState(() {
+      _isUpdatingStatus = true;
+    });
+
+    try {
+      await client.attachment.reviewAttachment(
+        attachmentId,
+        decision,
+        rejectionReason,
+      );
+      _hasChanges = true;
+      _loadData(showLoading: false);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to review attachment.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdatingStatus = false;
+        });
+      }
     }
   }
 
@@ -685,6 +878,31 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
 
               const SizedBox(height: 28),
 
+              // Attachments & Evidence Title
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Attachments & Evidence',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (!isCompleted)
+                    OutlinedButton.icon(
+                      onPressed: _isUpdatingStatus ? null : _uploadAttachment,
+                      icon: const Icon(Icons.upload_file_outlined, size: 18),
+                      label: const Text('Upload'),
+                    ),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              _buildAttachmentsSection(theme, colorScheme, currentAuthUserId),
+
+              const SizedBox(height: 28),
+
               // Activity Section Title
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -712,6 +930,166 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildAttachmentsSection(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    String? currentUserId,
+  ) {
+    if (_attachments.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Center(
+          child: Text('No attachments uploaded yet.'),
+        ),
+      );
+    }
+
+    return Column(
+      children: _attachments.map((attachment) {
+        final isUploader = attachment.uploaderUserId == currentUserId;
+        final isPending = attachment.approvalStatus == 'pending';
+        final isApproved = attachment.approvalStatus == 'approved';
+        final isRejected = attachment.approvalStatus == 'rejected';
+        final isCompleted = _currentPromise.status == 'completed';
+
+        Color statusColor;
+        IconData statusIcon;
+        String statusLabel;
+        if (isApproved) {
+          statusColor = Colors.green;
+          statusIcon = Icons.check_circle;
+          statusLabel = 'Approved';
+        } else if (isRejected) {
+          statusColor = colorScheme.error;
+          statusIcon = Icons.cancel;
+          statusLabel = 'Rejected';
+        } else {
+          statusColor = Colors.orange;
+          statusIcon = Icons.hourglass_bottom;
+          statusLabel = 'Pending Review';
+        }
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      attachment.mimeType == 'application/pdf'
+                          ? Icons.picture_as_pdf_outlined
+                          : Icons.image_outlined,
+                      size: 28,
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            attachment.fileName,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _formatDateTimeShort(attachment.createdAt),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.download_outlined),
+                      tooltip: 'Download / View',
+                      onPressed: () => _downloadAttachment(attachment.id!),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(statusIcon, size: 16, color: statusColor),
+                      const SizedBox(width: 6),
+                      Text(
+                        statusLabel,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: statusColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (isRejected && attachment.rejectionReason != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Reason: ${attachment.rejectionReason}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.error,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+                if (isPending && !isUploader && !isCompleted) ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: _isUpdatingStatus
+                            ? null
+                            : () =>
+                                  _reviewAttachment(attachment.id!, 'rejected'),
+                        child: Text(
+                          'Reject',
+                          style: TextStyle(color: colorScheme.error),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        onPressed: _isUpdatingStatus
+                            ? null
+                            : () =>
+                                  _reviewAttachment(attachment.id!, 'approved'),
+                        child: const Text('Approve'),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 

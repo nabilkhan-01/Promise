@@ -24,6 +24,12 @@ notification:
   - getUnreadNotificationCount:
   - markNotificationRead:
   - markAllNotificationsRead:
+attachment:
+  - getUploadDescription:
+  - verifyAttachment:
+  - getAttachments:
+  - getDownloadUrl:
+  - reviewAttachment:
 promise:
   - createPromise:
   - getPromises:

@@ -36,14 +36,17 @@ class _PromisePreparationScreenState extends State<PromisePreparationScreen> {
       final promiseId = widget.initialPromise.id!;
       final loadPromiseFuture = client.promise.getPromise(promiseId);
       final loadActivitiesFuture = client.promise.getActivities(promiseId);
+      final loadAttachmentsFuture = client.attachment.getAttachments(promiseId);
 
       final results = await Future.wait([
         loadPromiseFuture,
         loadActivitiesFuture,
+        loadAttachmentsFuture,
       ]);
 
       final loadedPromise = results[0] as Promise?;
       final loadedActivities = results[1] as List<PromiseActivity>;
+      final loadedAttachments = results[2] as List<PromiseAttachment>;
 
       if (!mounted) return;
 
@@ -55,6 +58,7 @@ class _PromisePreparationScreenState extends State<PromisePreparationScreen> {
           builder: (context) => PromiseDetailsScreen(
             promise: finalPromise,
             initialActivities: loadedActivities,
+            initialAttachments: loadedAttachments,
           ),
         ),
       );
