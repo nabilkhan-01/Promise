@@ -120,6 +120,34 @@ Promise solves this problem by turning everyday agreements into structured commi
 
 ---
 
+## AI-Assisted Development & Disclosure
+
+Promise was developed using AI-assisted engineering tools alongside developer-driven product vision, architecture decisions, debugging, code review, and manual release verification.
+
+### AI Tools Used
+
+- **ChatGPT:** Used for initial product strategy, architectural brainstorming, technical guidance, debugging analysis, test planning, code review, and documentation drafting.
+- **Google Gemini (Gemini Agent Mode):** Used for repository-aware implementation, codebase inspection, endpoint and widget development, test suite expansion, error diagnosis, and code formatting.
+
+### Developer Responsibilities & Ownership
+
+While AI tooling assisted in generating and refining portions of the codebase, **the project vision, architectural design, debugging direction, and release decisions were strictly owned and led by the project developer**.
+
+The developer was directly responsible for:
+
+- **Product Vision & Roadmap:** Defining the core concept, user workflows, feature requirements, priorities, and project milestones.
+- **Architecture & Technical Decisions:** Deciding the system design, data models, state management patterns, endpoint structures, and security authorization rules.
+- **Debugging & Root-Cause Investigation:** Identifying bugs, investigating failure modes, directing troubleshooting, evaluating candidate fixes, and choosing the appropriate resolution.
+- **Test Strategy & Acceptance Criteria:** Defining test scenarios, acceptance criteria, expected behaviors, reviewing test coverage, and evaluating test suite results.
+- **Code Review & Quality Control:** Inspecting all diffs, questioning generated implementation choices, ensuring backward compatibility, and deciding which changes to retain, modify, or reject.
+- **Release Management & Physical Verification:** Managing versioning, configuring deployment parameters, preparing releases, and performing manual physical-device testing.
+
+AI-generated suggestions and code blocks were evaluated critically as assistance. Automated test suite execution was supplemented by manual physical-device verification to confirm end-to-end functionality.
+
+**Disclosure:** Promise is an AI-assisted software project. ChatGPT and Google Gemini contributed to planning, implementation, codebase analysis, debugging, testing, and documentation support. The project developer maintained full ownership and responsibility for product direction, technical choices, code approval, and release validation.
+
+---
+
 ## Getting Started & Local Development
 
 ### Prerequisites
