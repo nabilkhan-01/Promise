@@ -83,6 +83,15 @@ class EndpointEmailIdp extends _iaic.EndpointEmailIdpBase {
   @override
   String get name => 'emailIdp';
 
+  /// Checks whether an email address belongs to an existing registered account.
+  /// Returns `true` if an account exists, `false` otherwise.
+  _ida.Future<bool> checkEmailRegistration({required String email}) =>
+      caller.callServerEndpoint<bool>(
+        'emailIdp',
+        'checkEmailRegistration',
+        {'email': email},
+      );
+
   @override
   _ida.Future<_isc.UuidValue> startRegistration({required String email}) =>
       caller.callServerEndpoint<_isc.UuidValue>(

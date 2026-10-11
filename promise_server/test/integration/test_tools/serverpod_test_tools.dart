@@ -284,6 +284,37 @@ class _EmailIdpEndpoint {
 
   final _is.SerializationManager _serializationManager;
 
+  _ida.Future<bool> checkEmailRegistration(
+    _ist.TestSessionBuilder sessionBuilder, {
+    required String email,
+  }) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'emailIdp',
+            method: 'checkEmailRegistration',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'emailIdp',
+          methodName: 'checkEmailRegistration',
+          parameters: _ist.testObjectToJson({'email': email}),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<bool>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
   _ida.Future<_is.UuidValue> startRegistration(
     _ist.TestSessionBuilder sessionBuilder, {
     required String email,

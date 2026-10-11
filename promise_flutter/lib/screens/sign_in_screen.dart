@@ -1,47 +1,77 @@
 import 'package:flutter/material.dart';
+import 'package:promise_client/promise_client.dart';
 import 'package:serverpod_auth_idp_flutter/serverpod_auth_idp_flutter.dart';
 // ignore: implementation_imports
 import 'package:serverpod_auth_idp_flutter/src/common/exceptions.dart';
 import '../client.dart';
 import '../utils/disposable_email_validator.dart';
 
+class PromiseEmailAuthController extends EmailAuthController {
+  PromiseEmailAuthController({
+    required super.client,
+    super.startScreen = EmailFlowScreen.startRegistration,
+    super.onAuthenticated,
+    super.onError,
+    super.emailValidation,
+  });
+
+  @override
+  Future<void> startRegistration() async {
+    final email = emailController.text.trim();
+    try {
+      emailValidation.call(email);
+    } catch (e) {
+      onError?.call(e);
+      return;
+    }
+
+    try {
+      final promiseClient = this.client as Client;
+      final isRegistered = await promiseClient.emailIdp.checkEmailRegistration(
+        email: email,
+      );
+      if (isRegistered) {
+        onError?.call(
+          ArgumentError(
+            'An account with this email already exists. Please sign in instead.',
+          ),
+        );
+        return;
+      }
+    } catch (e) {
+      if (e is ArgumentError &&
+          (e.message.toString().contains('not supported') ||
+              e.message.toString().contains('already exists'))) {
+        onError?.call(e);
+        return;
+      }
+      onError?.call(e);
+      return;
+    }
+
+    await super.startRegistration();
+
+    if (error != null) {
+      try {
+        final promiseClient = this.client as Client;
+        final isNowRegistered = await promiseClient.emailIdp
+            .checkEmailRegistration(email: email);
+        if (isNowRegistered) {
+          onError?.call(
+            ArgumentError(
+              'An account with this email already exists. Please sign in instead.',
+            ),
+          );
+        }
+      } catch (_) {}
+    }
+  }
+}
+
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
 
-  @override
-  State<SignInScreen> createState() => _SignInScreenState();
-}
-
-class _SignInScreenState extends State<SignInScreen> {
-  late final EmailAuthController _emailAuthController;
-
-  @override
-  void initState() {
-    super.initState();
-    _emailAuthController = EmailAuthController(
-      client: client,
-      startScreen: EmailFlowScreen.startRegistration,
-      onAuthenticated: () {},
-      onError: _handleError,
-      emailValidation: (email) {
-        try {
-          DisposableEmailValidator.validateAndNormalize(email);
-        } on ArgumentError catch (e) {
-          throw InvalidEmailException(
-            e.message?.toString() ?? 'Invalid email',
-          );
-        }
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    _emailAuthController.dispose();
-    super.dispose();
-  }
-
-  String _cleanErrorMessage(Object error) {
+  static String cleanErrorMessage(Object error) {
     final buffer = StringBuffer(error.toString());
 
     if (error is UserFacingException) {
@@ -88,7 +118,7 @@ class _SignInScreenState extends State<SignInScreen> {
         return 'No account found with this email address.';
       }
       if (fullStr.contains('invalid')) {
-        return 'That verification code is incorrect. Please try again.';
+        return 'That verification code is incorrect. Please check and try again.';
       }
       if (fullStr.contains('expired')) {
         return 'That verification code has expired. Please request a new code.';
@@ -123,13 +153,66 @@ class _SignInScreenState extends State<SignInScreen> {
     return 'Authentication failed. Please check your details and connection.';
   }
 
-  void _handleError(Object error) {
-    final cleanMsg = _cleanErrorMessage(error);
-    final fullStr = error.toString();
-    final isDuplicateAccount =
+  @override
+  State<SignInScreen> createState() => _SignInScreenState();
+}
+
+class _SignInScreenState extends State<SignInScreen> {
+  late final PromiseEmailAuthController _emailAuthController;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailAuthController = PromiseEmailAuthController(
+      client: client,
+      startScreen: EmailFlowScreen.startRegistration,
+      onAuthenticated: () {},
+      onError: _handleError,
+      emailValidation: (email) {
+        try {
+          DisposableEmailValidator.validateAndNormalize(email);
+        } on ArgumentError catch (e) {
+          throw InvalidEmailException(
+            e.message?.toString() ?? 'Invalid email',
+          );
+        }
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _emailAuthController.dispose();
+    super.dispose();
+  }
+
+  void _handleError(Object error) async {
+    var cleanMsg = SignInScreen.cleanErrorMessage(error);
+    var fullStr = error.toString();
+    var isDuplicateAccount =
         fullStr.contains('already exists') ||
         fullStr.contains('already registered') ||
         fullStr.contains('EmailAccountAlreadyRegisteredException');
+
+    if (!isDuplicateAccount &&
+        _emailAuthController.currentScreen ==
+            EmailFlowScreen.startRegistration) {
+      final email = _emailAuthController.emailController.text.trim();
+      if (email.isNotEmpty) {
+        try {
+          final promiseClient = _emailAuthController.client as Client;
+          final isNowRegistered = await promiseClient.emailIdp
+              .checkEmailRegistration(email: email);
+          if (isNowRegistered) {
+            isDuplicateAccount = true;
+            cleanMsg =
+                'An account with this email already exists. Please sign in instead.';
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (!mounted) return;
 
     debugPrint('[SignInScreen] Error caught: $error -> $cleanMsg');
     ScaffoldMessenger.of(context).showSnackBar(

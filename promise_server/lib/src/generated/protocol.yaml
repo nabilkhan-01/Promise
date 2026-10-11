@@ -1,6 +1,7 @@
 jwtRefresh:
   - refreshAccessToken:
 emailIdp:
+  - checkEmailRegistration:
   - startRegistration:
   - login:
   - startPasswordReset:

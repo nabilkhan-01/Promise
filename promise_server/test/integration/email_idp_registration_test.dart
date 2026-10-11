@@ -39,6 +39,44 @@ void main() {
     endpoints,
   ) {
     test(
+      'checkEmailRegistration returns true for registered email and false for new email',
+      () async {
+        final session = sessionBuilder.build();
+        const existingEmail = 'registered_check@example.com';
+
+        final authUser = await AuthUser.db.insertRow(
+          session,
+          AuthUser(
+            createdAt: DateTime.now().toUtc(),
+            scopeNames: {},
+          ),
+        );
+
+        await EmailAccount.db.insertRow(
+          session,
+          EmailAccount(
+            authUserId: authUser.id!,
+            email: existingEmail,
+            passwordHash: 'dummy_hash',
+            createdAt: DateTime.now().toUtc(),
+          ),
+        );
+
+        final isRegistered = await endpoints.emailIdp.checkEmailRegistration(
+          sessionBuilder,
+          email: '  Registered_Check@EXAMPLE.com  ',
+        );
+        expect(isRegistered, isTrue);
+
+        final isNewRegistered = await endpoints.emailIdp.checkEmailRegistration(
+          sessionBuilder,
+          email: 'brandnew@example.com',
+        );
+        expect(isNewRegistered, isFalse);
+      },
+    );
+
+    test(
       'signing up with an existing registered email returns duplicate account error',
       () async {
         final session = sessionBuilder.build();
@@ -112,6 +150,20 @@ void main() {
         endpoints.emailIdp.startRegistration(
           sessionBuilder,
           email: 'user@mailinator.com',
+        ),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            contains('not supported'),
+          ),
+        ),
+      );
+
+      await expectLater(
+        endpoints.emailIdp.checkEmailRegistration(
+          sessionBuilder,
+          email: 'user@tempmail.com',
         ),
         throwsA(
           isA<ArgumentError>().having(

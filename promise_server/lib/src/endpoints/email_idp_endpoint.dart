@@ -3,6 +3,22 @@ import 'package:serverpod_auth_idp_server/providers/email.dart';
 import '../auth/disposable_email_validator.dart';
 
 class EmailIdpEndpoint extends EmailIdpBaseEndpoint {
+  /// Checks whether an email address belongs to an existing registered account.
+  /// Returns `true` if an account exists, `false` otherwise.
+  Future<bool> checkEmailRegistration(
+    Session session, {
+    required String email,
+  }) async {
+    final cleanEmail = DisposableEmailValidator.validateAndNormalize(email);
+
+    final existingAccount = await EmailAccount.db.findFirstRow(
+      session,
+      where: (t) => t.email.equals(cleanEmail),
+    );
+
+    return existingAccount != null;
+  }
+
   @override
   Future<UuidValue> startRegistration(
     Session session, {

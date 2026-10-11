@@ -104,6 +104,25 @@ class Endpoints extends _is.EndpointDispatch {
       name: 'emailIdp',
       endpoint: endpoints['emailIdp']!,
       methodConnectors: {
+        'checkEmailRegistration': _is.MethodConnector(
+          name: 'checkEmailRegistration',
+          params: {
+            'email': _is.ParameterDescription(
+              name: 'email',
+              type: _is.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['emailIdp'] as _ilutrrxn.EmailIdpEndpoint)
+                  .checkEmailRegistration(
+                    session,
+                    email: params['email'],
+                  ),
+        ),
         'startRegistration': _is.MethodConnector(
           name: 'startRegistration',
           params: {
