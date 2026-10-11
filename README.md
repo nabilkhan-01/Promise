@@ -1,4 +1,4 @@
-# Promise (v0.3.0)
+# Promise (v0.3.1)
 
 Promise helps people turn everyday agreements into clear, trackable, and documented commitments.
 
@@ -27,10 +27,15 @@ Promise solves this problem by turning everyday agreements into structured commi
 
 ## Features
 
+### App Launcher Branding
+- **Handshake Launcher Icon:** Custom handshake branding logo replacing standard default icons across all Android mipmap densities (`hdpi`, `mdpi`, `xhdpi`, `xxhdpi`, `xxxhdpi`) and iOS app icon sets.
+- **Adaptive Icon Styling:** Configured with a near-black background (`#121318`) and safe-zone padding to maintain logo visibility under circular, squircle, or rounded Android icon masking.
+- **App Name:** Displayed as **Promise** on the Android and iOS launcher screens.
+
 ### Authentication & Email Delivery
 - **Serverpod Auth Email IDP:** Email authentication managed by Serverpod Auth 4.0.
 - **Brevo REST API Email Delivery:** Transactional emails (registration and password resets) delivered via Brevo's HTTPS REST API (`POST https://api.brevo.com/v3/smtp/email`) on port 443.
-- **Duplicate-Account Detection:** Immediate server-side check during sign-up for existing registered accounts. Returns a clear error (*"An account with this email already exists. Please sign in instead."*) with a direct **Sign In** action preserving the entered email address, preventing duplicate registration requests or unnecessary verification emails.
+- **Reliable Duplicate-Account Signup Fix:** Pre-registration RPC check (`checkEmailRegistration`) and race-condition fallback that detects existing registered accounts before registration is initiated. Displays *"An account with this email already exists. Please sign in instead."* with a direct **Sign In** action preserving the entered email address, preventing duplicate registration requests or unnecessary verification emails.
 - **Server-Side Credentials:** Brevo API keys (`brevoApiKey`) are stored exclusively in Serverpod Cloud secrets / `config/passwords.yaml` and are never exposed to the Flutter client.
 - **Password Reset Flow:** Complete email-verified password reset with secure 6-digit code verification.
 - **Disposable Email Protection:** Authoritative server-side and client-side validation rejecting temporary/disposable email domain providers (e.g., Mailinator, TempMail).
@@ -97,7 +102,7 @@ Promise solves this problem by turning everyday agreements into structured commi
 ## Tech Stack
 
 ### Frontend
-- **Framework:** Flutter `0.3.0+3` (Android-first cross-platform UI)
+- **Framework:** Flutter `0.3.1+4` (Android-first cross-platform UI)
 - **Language:** Dart
 - **Design System:** Material 3
 
@@ -177,16 +182,17 @@ flutter test
 ### Automated Backend Tests (`dart test -j 1`)
 - [x] Disposable email validator unit tests (`disposable_email_validator_test.dart`).
 - [x] Email IDP endpoint integration tests (`email_idp_endpoint_test.dart`).
-- [x] Email registration duplicate detection integration tests (`email_idp_registration_test.dart`).
+- [x] Email registration duplicate detection & `checkEmailRegistration` integration tests (`email_idp_registration_test.dart`).
 - [x] Attachment endpoint security & upload integration tests (`attachment_endpoint_test.dart`).
 - [x] Group promise atomic creation & derived lifecycle integration tests (`group_promise_test.dart`).
 - [x] Promise acceptance, 7-day expiry, and deduplicated deadline reminder integration tests (`promise_acceptance_and_future_calls_test.dart`).
-- [x] All server integration tests passing (**40 / 40** tests).
+- [x] All server integration tests passing (**41 / 41** tests).
 
 ### Automated Flutter Tests (`flutter test`)
 - [x] Timezone-safe deadline rendering and sorting tests (`deadline_utils_test.dart`).
 - [x] `IndicatorIconButton` widget unit tests (`indicator_icon_button_test.dart`).
-- [x] All Flutter tests passing (**13 / 13** tests).
+- [x] Auth controller & duplicate signup error flow tests (`sign_in_screen_test.dart`).
+- [x] All Flutter tests passing (**21 / 21** tests).
 
 ### Static Analysis
 - [x] `promise_server`: Clean (**0 issues**).
@@ -199,7 +205,7 @@ flutter test
 
 - **Security & Authorization:** Strict participant-level authorization on all promises, activities, attachments, and notifications. Sibling isolation is enforced on Group Promises so recipients can only access their assigned sub-tasks.
 - **7-Day Expiry & Reminders:** Background execution uses Serverpod FutureCalls verified via automated integration tests (`promise_acceptance_and_future_calls_test.dart`). Full production verification depends on Serverpod Cloud execution.
-- **Physical Device & Cloud Storage:** Upload verification and file picking have been tested on local embedded storage; physical Android device testing against live cloud storage will be performed manually.
+- **Physical Device & Cloud Storage:** Upload verification and launcher icon rendering have been tested on local embedded storage; physical Android device testing against live cloud storage will be performed manually.
 - **30-Day Attachment Pruning:** Automatic background cleanup of 30-day unreviewed attachments or orphaned files remains deferred (for post-hackathon) to avoid untested database cron jobs.
 - **Malware Scanning:** File uploads validate 10 MB limits and MIME types (`pdf`, `png`, `jpeg`), but do not perform deep byte-level antivirus scanning.
 
@@ -207,6 +213,6 @@ flutter test
 
 ## Status
 
-Promise v0.3.0 is a full-stack Serverpod 4.0.3 + Flutter application. All core features — recipient acceptance, 7-day invitation expiry, deduplicated deadline reminders, duplicate-account detection, Brevo email authentication, friends, time-safe promises, grouped multi-recipient promises, private receipt attachments, `IndicatorIconButton` animated UI feedback, in-app notifications, and PostgreSQL persistence — are implemented, verified, and passing all automated test suites.
+Promise v0.3.1 is a full-stack Serverpod 4.0.3 + Flutter application. All features — launcher branding, recipient acceptance, 7-day invitation expiry, deduplicated deadline reminders, duplicate-account detection, Brevo email authentication, friends, time-safe promises, grouped multi-recipient promises, private receipt attachments, `IndicatorIconButton` animated UI feedback, in-app notifications, and PostgreSQL persistence — are implemented, verified, and passing all automated test suites.
 
 **Repository:** [https://github.com/nabilkhan-01/Promise](https://github.com/nabilkhan-01/Promise)
