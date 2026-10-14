@@ -1,0 +1,16 @@
+class: PromiseFinancialSummary
+fields:
+  promiseId: int
+  hasFinancials: bool
+  currency: String?
+  totalAgreedMinorUnits: int?
+  totalScheduledMinorUnits: int?
+  totalConfirmedPaymentMinorUnits: int?
+  totalConfirmedRefundMinorUnits: int?
+  netConfirmedSettlementMinorUnits: int?
+  outstandingBalanceMinorUnits: int?
+  settlementStatus: String
+  refundStatus: String
+  hasActiveDispute: bool
+  payerUserId: String?
+  payeeUserId: String?

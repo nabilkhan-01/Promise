@@ -13,6 +13,8 @@
 import 'package:promise_server/src/generated/future_calls.dart' as _i2rtw6qf;
 import 'package:promise_server/src/generated/promises/promise.dart'
     as _ipgb4ryh;
+import 'package:promise_server/src/generated/promises/promise_payment_schedule.dart'
+    as _iby9nazs;
 import 'package:serverpod/serverpod.dart' as _is;
 import 'package:serverpod_auth_core_server/serverpod_auth_core_server.dart'
     as _iacs;
@@ -24,6 +26,7 @@ import '../friends/friend_endpoint.dart' as _ib9qa24p;
 import '../greetings/greeting_endpoint.dart' as _il624ik7;
 import '../notifications/notification_endpoint.dart' as _ibyw8x7k;
 import '../promises/attachment_endpoint.dart' as _iz4cv5v8;
+import '../promises/financial_endpoint.dart' as _ivlajkz6;
 import '../promises/promise_endpoint.dart' as _itrz4nk3;
 export 'future_calls.dart' show ServerpodFutureCallsGetter;
 
@@ -65,6 +68,12 @@ class Endpoints extends _is.EndpointDispatch {
         ..initialize(
           server,
           'attachment',
+          null,
+        ),
+      'financial': _ivlajkz6.FinancialEndpoint()
+        ..initialize(
+          server,
+          'financial',
           null,
         ),
       'promise': _itrz4nk3.PromiseEndpoint()
@@ -664,6 +673,397 @@ class Endpoints extends _is.EndpointDispatch {
                         params['decision'],
                         rejectionReason: params['rejectionReason'],
                       ),
+        ),
+      },
+    );
+    connectors['financial'] = _is.EndpointConnector(
+      name: 'financial',
+      endpoint: endpoints['financial']!,
+      methodConnectors: {
+        'getFinancialSummary': _is.MethodConnector(
+          name: 'getFinancialSummary',
+          params: {
+            'promiseId': _is.ParameterDescription(
+              name: 'promiseId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['financial'] as _ivlajkz6.FinancialEndpoint)
+                  .getFinancialSummary(
+                    session,
+                    params['promiseId'],
+                  ),
+        ),
+        'getGroupFinancialSummary': _is.MethodConnector(
+          name: 'getGroupFinancialSummary',
+          params: {
+            'parentPromiseId': _is.ParameterDescription(
+              name: 'parentPromiseId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['financial'] as _ivlajkz6.FinancialEndpoint)
+                  .getGroupFinancialSummary(
+                    session,
+                    params['parentPromiseId'],
+                  ),
+        ),
+        'getFinancialTerms': _is.MethodConnector(
+          name: 'getFinancialTerms',
+          params: {
+            'promiseId': _is.ParameterDescription(
+              name: 'promiseId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['financial'] as _ivlajkz6.FinancialEndpoint)
+                  .getFinancialTerms(
+                    session,
+                    params['promiseId'],
+                  ),
+        ),
+        'getPaymentSchedule': _is.MethodConnector(
+          name: 'getPaymentSchedule',
+          params: {
+            'promiseId': _is.ParameterDescription(
+              name: 'promiseId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['financial'] as _ivlajkz6.FinancialEndpoint)
+                  .getPaymentSchedule(
+                    session,
+                    params['promiseId'],
+                  ),
+        ),
+        'getPaymentRecords': _is.MethodConnector(
+          name: 'getPaymentRecords',
+          params: {
+            'promiseId': _is.ParameterDescription(
+              name: 'promiseId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['financial'] as _ivlajkz6.FinancialEndpoint)
+                  .getPaymentRecords(
+                    session,
+                    params['promiseId'],
+                  ),
+        ),
+        'setFinancialTerms': _is.MethodConnector(
+          name: 'setFinancialTerms',
+          params: {
+            'promiseId': _is.ParameterDescription(
+              name: 'promiseId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+            'totalAmountMinorUnits': _is.ParameterDescription(
+              name: 'totalAmountMinorUnits',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+            'currency': _is.ParameterDescription(
+              name: 'currency',
+              type: _is.getType<String>(),
+              nullable: false,
+            ),
+            'payerUserId': _is.ParameterDescription(
+              name: 'payerUserId',
+              type: _is.getType<String>(),
+              nullable: false,
+            ),
+            'payeeUserId': _is.ParameterDescription(
+              name: 'payeeUserId',
+              type: _is.getType<String>(),
+              nullable: false,
+            ),
+            'notes': _is.ParameterDescription(
+              name: 'notes',
+              type: _is.getType<String?>(),
+              nullable: true,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['financial'] as _ivlajkz6.FinancialEndpoint)
+                  .setFinancialTerms(
+                    session,
+                    params['promiseId'],
+                    params['totalAmountMinorUnits'],
+                    params['currency'],
+                    params['payerUserId'],
+                    params['payeeUserId'],
+                    params['notes'],
+                  ),
+        ),
+        'setPaymentSchedule': _is.MethodConnector(
+          name: 'setPaymentSchedule',
+          params: {
+            'promiseId': _is.ParameterDescription(
+              name: 'promiseId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+            'installments': _is.ParameterDescription(
+              name: 'installments',
+              type: _is.getType<List<_iby9nazs.PromisePaymentSchedule>>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['financial'] as _ivlajkz6.FinancialEndpoint)
+                  .setPaymentSchedule(
+                    session,
+                    params['promiseId'],
+                    params['installments'],
+                  ),
+        ),
+        'cancelPaymentScheduleInstallment': _is.MethodConnector(
+          name: 'cancelPaymentScheduleInstallment',
+          params: {
+            'scheduleId': _is.ParameterDescription(
+              name: 'scheduleId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+            'cancellationReason': _is.ParameterDescription(
+              name: 'cancellationReason',
+              type: _is.getType<String?>(),
+              nullable: true,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['financial'] as _ivlajkz6.FinancialEndpoint)
+                  .cancelPaymentScheduleInstallment(
+                    session,
+                    params['scheduleId'],
+                    params['cancellationReason'],
+                  ),
+        ),
+        'recordPayment': _is.MethodConnector(
+          name: 'recordPayment',
+          params: {
+            'promiseId': _is.ParameterDescription(
+              name: 'promiseId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+            'scheduleId': _is.ParameterDescription(
+              name: 'scheduleId',
+              type: _is.getType<int?>(),
+              nullable: true,
+            ),
+            'amountMinorUnits': _is.ParameterDescription(
+              name: 'amountMinorUnits',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+            'paymentDate': _is.ParameterDescription(
+              name: 'paymentDate',
+              type: _is.getType<DateTime>(),
+              nullable: false,
+            ),
+            'paymentMethod': _is.ParameterDescription(
+              name: 'paymentMethod',
+              type: _is.getType<String>(),
+              nullable: false,
+            ),
+            'externalReference': _is.ParameterDescription(
+              name: 'externalReference',
+              type: _is.getType<String?>(),
+              nullable: true,
+            ),
+            'notes': _is.ParameterDescription(
+              name: 'notes',
+              type: _is.getType<String?>(),
+              nullable: true,
+            ),
+            'attachmentId': _is.ParameterDescription(
+              name: 'attachmentId',
+              type: _is.getType<int?>(),
+              nullable: true,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['financial'] as _ivlajkz6.FinancialEndpoint)
+                  .recordPayment(
+                    session,
+                    params['promiseId'],
+                    params['scheduleId'],
+                    params['amountMinorUnits'],
+                    params['paymentDate'],
+                    params['paymentMethod'],
+                    params['externalReference'],
+                    params['notes'],
+                    params['attachmentId'],
+                  ),
+        ),
+        'recordRefund': _is.MethodConnector(
+          name: 'recordRefund',
+          params: {
+            'promiseId': _is.ParameterDescription(
+              name: 'promiseId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+            'originalPaymentRecordId': _is.ParameterDescription(
+              name: 'originalPaymentRecordId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+            'amountMinorUnits': _is.ParameterDescription(
+              name: 'amountMinorUnits',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+            'refundDate': _is.ParameterDescription(
+              name: 'refundDate',
+              type: _is.getType<DateTime>(),
+              nullable: false,
+            ),
+            'paymentMethod': _is.ParameterDescription(
+              name: 'paymentMethod',
+              type: _is.getType<String>(),
+              nullable: false,
+            ),
+            'externalReference': _is.ParameterDescription(
+              name: 'externalReference',
+              type: _is.getType<String?>(),
+              nullable: true,
+            ),
+            'notes': _is.ParameterDescription(
+              name: 'notes',
+              type: _is.getType<String?>(),
+              nullable: true,
+            ),
+            'attachmentId': _is.ParameterDescription(
+              name: 'attachmentId',
+              type: _is.getType<int?>(),
+              nullable: true,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['financial'] as _ivlajkz6.FinancialEndpoint)
+                  .recordRefund(
+                    session,
+                    params['promiseId'],
+                    params['originalPaymentRecordId'],
+                    params['amountMinorUnits'],
+                    params['refundDate'],
+                    params['paymentMethod'],
+                    params['externalReference'],
+                    params['notes'],
+                    params['attachmentId'],
+                  ),
+        ),
+        'confirmPaymentRecord': _is.MethodConnector(
+          name: 'confirmPaymentRecord',
+          params: {
+            'paymentRecordId': _is.ParameterDescription(
+              name: 'paymentRecordId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['financial'] as _ivlajkz6.FinancialEndpoint)
+                  .confirmPaymentRecord(
+                    session,
+                    params['paymentRecordId'],
+                  ),
+        ),
+        'disputePaymentRecord': _is.MethodConnector(
+          name: 'disputePaymentRecord',
+          params: {
+            'paymentRecordId': _is.ParameterDescription(
+              name: 'paymentRecordId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+            'reason': _is.ParameterDescription(
+              name: 'reason',
+              type: _is.getType<String>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['financial'] as _ivlajkz6.FinancialEndpoint)
+                  .disputePaymentRecord(
+                    session,
+                    params['paymentRecordId'],
+                    params['reason'],
+                  ),
+        ),
+        'cancelPaymentRecord': _is.MethodConnector(
+          name: 'cancelPaymentRecord',
+          params: {
+            'paymentRecordId': _is.ParameterDescription(
+              name: 'paymentRecordId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+            'cancellationReason': _is.ParameterDescription(
+              name: 'cancellationReason',
+              type: _is.getType<String?>(),
+              nullable: true,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['financial'] as _ivlajkz6.FinancialEndpoint)
+                  .cancelPaymentRecord(
+                    session,
+                    params['paymentRecordId'],
+                    params['cancellationReason'],
+                  ),
         ),
       },
     );

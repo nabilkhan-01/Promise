@@ -31,6 +31,20 @@ attachment:
   - getAttachments:
   - getDownloadUrl:
   - reviewAttachment:
+financial:
+  - getFinancialSummary:
+  - getGroupFinancialSummary:
+  - getFinancialTerms:
+  - getPaymentSchedule:
+  - getPaymentRecords:
+  - setFinancialTerms:
+  - setPaymentSchedule:
+  - cancelPaymentScheduleInstallment:
+  - recordPayment:
+  - recordRefund:
+  - confirmPaymentRecord:
+  - disputePaymentRecord:
+  - cancelPaymentRecord:
 promise:
   - createPromise:
   - createGroupedPromise:

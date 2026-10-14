@@ -21,6 +21,10 @@ import 'package:promise_server/src/generated/promises/promise_activity.dart'
     as _ih1o0d6l;
 import 'package:promise_server/src/generated/promises/promise_attachment.dart'
     as _ir9c0j66;
+import 'package:promise_server/src/generated/promises/promise_payment_record.dart'
+    as _ixrmqdzt;
+import 'package:promise_server/src/generated/promises/promise_payment_schedule.dart'
+    as _iby9nazs;
 import 'package:serverpod/protocol.dart' as _isp;
 import 'package:serverpod/serverpod.dart' as _is;
 import 'package:serverpod_auth_core_server/serverpod_auth_core_server.dart'
@@ -34,11 +38,16 @@ import 'greetings/greeting.dart' as _izw8z7ou;
 import 'notifications/app_notification.dart' as _ih0s0cfq;
 import 'promises/attachment_upload_description.dart' as _ipry8xt3;
 import 'promises/deadline_reminder_object.dart' as _iqhyy8ir;
+import 'promises/group_financial_summary.dart' as _if1nqauc;
 import 'promises/parent_project_metadata.dart' as _iegghg43;
 import 'promises/promise.dart' as _i9knynp5;
 import 'promises/promise_activity.dart' as _itvtbfbt;
 import 'promises/promise_attachment.dart' as _i64rwlud;
 import 'promises/promise_expiry_object.dart' as _iwkf95uh;
+import 'promises/promise_financial_summary.dart' as _ial6qs5u;
+import 'promises/promise_financial_terms.dart' as _ihzb06nf;
+import 'promises/promise_payment_record.dart' as _imdaekze;
+import 'promises/promise_payment_schedule.dart' as _i3vn3kwg;
 export 'auth/account_not_found_exception.dart';
 export 'friends/friendship.dart';
 export 'friends/user_search_profile.dart';
@@ -46,11 +55,16 @@ export 'greetings/greeting.dart';
 export 'notifications/app_notification.dart';
 export 'promises/attachment_upload_description.dart';
 export 'promises/deadline_reminder_object.dart';
+export 'promises/group_financial_summary.dart';
 export 'promises/parent_project_metadata.dart';
 export 'promises/promise.dart';
 export 'promises/promise_activity.dart';
 export 'promises/promise_attachment.dart';
 export 'promises/promise_expiry_object.dart';
+export 'promises/promise_financial_summary.dart';
+export 'promises/promise_financial_terms.dart';
+export 'promises/promise_payment_record.dart';
+export 'promises/promise_payment_schedule.dart';
 
 class Protocol extends _is.DatabaseSerializationManager {
   Protocol._();
@@ -448,6 +462,460 @@ class Protocol extends _is.DatabaseSerializationManager {
       indexes: [],
       managed: true,
     ),
+    _isp.TableDefinition(
+      name: 'promise_financial_terms',
+      dartName: 'PromiseFinancialTerms',
+      schema: 'public',
+      module: 'promise',
+      columns: [
+        _isp.ColumnDefinition(
+          name: 'id',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: false,
+          dartType: 'int?',
+          columnDefault: 'serial',
+        ),
+        _isp.ColumnDefinition(
+          name: 'promiseId',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: false,
+          dartType: 'int',
+        ),
+        _isp.ColumnDefinition(
+          name: 'totalAmountMinorUnits',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: false,
+          dartType: 'int',
+        ),
+        _isp.ColumnDefinition(
+          name: 'currency',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+        ),
+        _isp.ColumnDefinition(
+          name: 'payerUserId',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+        ),
+        _isp.ColumnDefinition(
+          name: 'payeeUserId',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+        ),
+        _isp.ColumnDefinition(
+          name: 'notes',
+          columnType: _isp.ColumnType.text,
+          isNullable: true,
+          dartType: 'String?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'createdAt',
+          columnType: _isp.ColumnType.timestampWithoutTimeZone,
+          isNullable: false,
+          dartType: 'DateTime',
+        ),
+        _isp.ColumnDefinition(
+          name: 'updatedAt',
+          columnType: _isp.ColumnType.timestampWithoutTimeZone,
+          isNullable: true,
+          dartType: 'DateTime?',
+        ),
+      ],
+      foreignKeys: [
+        _isp.ForeignKeyDefinition(
+          constraintName: 'promise_financial_terms_fk_0',
+          columns: ['promiseId'],
+          referenceTable: 'promise',
+          referenceTableSchema: 'public',
+          referenceColumns: ['id'],
+          onUpdate: _isp.ForeignKeyAction.noAction,
+          onDelete: _isp.ForeignKeyAction.noAction,
+          matchType: null,
+        ),
+      ],
+      indexes: [
+        _isp.IndexDefinition(
+          indexName: 'promise_financial_terms_promise_id_idx',
+          tableSpace: null,
+          elements: [
+            _isp.IndexElementDefinition(
+              type: _isp.IndexElementDefinitionType.column,
+              definition: 'promiseId',
+            ),
+          ],
+          type: 'btree',
+          isUnique: true,
+          isPrimary: false,
+        ),
+      ],
+      managed: true,
+    ),
+    _isp.TableDefinition(
+      name: 'promise_payment_record',
+      dartName: 'PromisePaymentRecord',
+      schema: 'public',
+      module: 'promise',
+      columns: [
+        _isp.ColumnDefinition(
+          name: 'id',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: false,
+          dartType: 'int?',
+          columnDefault: 'serial',
+        ),
+        _isp.ColumnDefinition(
+          name: 'promiseId',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: false,
+          dartType: 'int',
+        ),
+        _isp.ColumnDefinition(
+          name: 'scheduleId',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: true,
+          dartType: 'int?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'recordKind',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+        ),
+        _isp.ColumnDefinition(
+          name: 'reversesPaymentRecordId',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: true,
+          dartType: 'int?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'recorderUserId',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+        ),
+        _isp.ColumnDefinition(
+          name: 'payerUserId',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+        ),
+        _isp.ColumnDefinition(
+          name: 'payeeUserId',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+        ),
+        _isp.ColumnDefinition(
+          name: 'amountMinorUnits',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: false,
+          dartType: 'int',
+        ),
+        _isp.ColumnDefinition(
+          name: 'currency',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+        ),
+        _isp.ColumnDefinition(
+          name: 'paymentDate',
+          columnType: _isp.ColumnType.timestampWithoutTimeZone,
+          isNullable: false,
+          dartType: 'DateTime',
+        ),
+        _isp.ColumnDefinition(
+          name: 'paymentMethod',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+        ),
+        _isp.ColumnDefinition(
+          name: 'externalReference',
+          columnType: _isp.ColumnType.text,
+          isNullable: true,
+          dartType: 'String?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'notes',
+          columnType: _isp.ColumnType.text,
+          isNullable: true,
+          dartType: 'String?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'attachmentId',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: true,
+          dartType: 'int?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'status',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+          columnDefault: '\'pending_confirmation\'',
+        ),
+        _isp.ColumnDefinition(
+          name: 'confirmedAt',
+          columnType: _isp.ColumnType.timestampWithoutTimeZone,
+          isNullable: true,
+          dartType: 'DateTime?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'confirmerUserId',
+          columnType: _isp.ColumnType.text,
+          isNullable: true,
+          dartType: 'String?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'disputedAt',
+          columnType: _isp.ColumnType.timestampWithoutTimeZone,
+          isNullable: true,
+          dartType: 'DateTime?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'disputerUserId',
+          columnType: _isp.ColumnType.text,
+          isNullable: true,
+          dartType: 'String?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'disputeReason',
+          columnType: _isp.ColumnType.text,
+          isNullable: true,
+          dartType: 'String?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'cancelledAt',
+          columnType: _isp.ColumnType.timestampWithoutTimeZone,
+          isNullable: true,
+          dartType: 'DateTime?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'cancellerUserId',
+          columnType: _isp.ColumnType.text,
+          isNullable: true,
+          dartType: 'String?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'cancellationReason',
+          columnType: _isp.ColumnType.text,
+          isNullable: true,
+          dartType: 'String?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'createdAt',
+          columnType: _isp.ColumnType.timestampWithoutTimeZone,
+          isNullable: false,
+          dartType: 'DateTime',
+        ),
+        _isp.ColumnDefinition(
+          name: 'updatedAt',
+          columnType: _isp.ColumnType.timestampWithoutTimeZone,
+          isNullable: true,
+          dartType: 'DateTime?',
+        ),
+      ],
+      foreignKeys: [
+        _isp.ForeignKeyDefinition(
+          constraintName: 'promise_payment_record_fk_0',
+          columns: ['promiseId'],
+          referenceTable: 'promise',
+          referenceTableSchema: 'public',
+          referenceColumns: ['id'],
+          onUpdate: _isp.ForeignKeyAction.noAction,
+          onDelete: _isp.ForeignKeyAction.noAction,
+          matchType: null,
+        ),
+        _isp.ForeignKeyDefinition(
+          constraintName: 'promise_payment_record_fk_1',
+          columns: ['scheduleId'],
+          referenceTable: 'promise_payment_schedule',
+          referenceTableSchema: 'public',
+          referenceColumns: ['id'],
+          onUpdate: _isp.ForeignKeyAction.noAction,
+          onDelete: _isp.ForeignKeyAction.noAction,
+          matchType: null,
+        ),
+        _isp.ForeignKeyDefinition(
+          constraintName: 'promise_payment_record_fk_2',
+          columns: ['reversesPaymentRecordId'],
+          referenceTable: 'promise_payment_record',
+          referenceTableSchema: 'public',
+          referenceColumns: ['id'],
+          onUpdate: _isp.ForeignKeyAction.noAction,
+          onDelete: _isp.ForeignKeyAction.noAction,
+          matchType: null,
+        ),
+        _isp.ForeignKeyDefinition(
+          constraintName: 'promise_payment_record_fk_3',
+          columns: ['attachmentId'],
+          referenceTable: 'promise_attachment',
+          referenceTableSchema: 'public',
+          referenceColumns: ['id'],
+          onUpdate: _isp.ForeignKeyAction.noAction,
+          onDelete: _isp.ForeignKeyAction.noAction,
+          matchType: null,
+        ),
+      ],
+      indexes: [
+        _isp.IndexDefinition(
+          indexName: 'promise_payment_record_promise_id_idx',
+          tableSpace: null,
+          elements: [
+            _isp.IndexElementDefinition(
+              type: _isp.IndexElementDefinitionType.column,
+              definition: 'promiseId',
+            ),
+          ],
+          type: 'btree',
+          isUnique: false,
+          isPrimary: false,
+        ),
+        _isp.IndexDefinition(
+          indexName: 'promise_payment_record_reverses_idx',
+          tableSpace: null,
+          elements: [
+            _isp.IndexElementDefinition(
+              type: _isp.IndexElementDefinitionType.column,
+              definition: 'reversesPaymentRecordId',
+            ),
+          ],
+          type: 'btree',
+          isUnique: false,
+          isPrimary: false,
+        ),
+      ],
+      managed: true,
+    ),
+    _isp.TableDefinition(
+      name: 'promise_payment_schedule',
+      dartName: 'PromisePaymentSchedule',
+      schema: 'public',
+      module: 'promise',
+      columns: [
+        _isp.ColumnDefinition(
+          name: 'id',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: false,
+          dartType: 'int?',
+          columnDefault: 'serial',
+        ),
+        _isp.ColumnDefinition(
+          name: 'promiseId',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: false,
+          dartType: 'int',
+        ),
+        _isp.ColumnDefinition(
+          name: 'installmentOrder',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: false,
+          dartType: 'int',
+        ),
+        _isp.ColumnDefinition(
+          name: 'amountMinorUnits',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: false,
+          dartType: 'int',
+        ),
+        _isp.ColumnDefinition(
+          name: 'currency',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+        ),
+        _isp.ColumnDefinition(
+          name: 'dueDate',
+          columnType: _isp.ColumnType.timestampWithoutTimeZone,
+          isNullable: false,
+          dartType: 'DateTime',
+        ),
+        _isp.ColumnDefinition(
+          name: 'cancelledAt',
+          columnType: _isp.ColumnType.timestampWithoutTimeZone,
+          isNullable: true,
+          dartType: 'DateTime?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'cancelledByUserId',
+          columnType: _isp.ColumnType.text,
+          isNullable: true,
+          dartType: 'String?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'cancellationReason',
+          columnType: _isp.ColumnType.text,
+          isNullable: true,
+          dartType: 'String?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'notes',
+          columnType: _isp.ColumnType.text,
+          isNullable: true,
+          dartType: 'String?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'createdAt',
+          columnType: _isp.ColumnType.timestampWithoutTimeZone,
+          isNullable: false,
+          dartType: 'DateTime',
+        ),
+        _isp.ColumnDefinition(
+          name: 'updatedAt',
+          columnType: _isp.ColumnType.timestampWithoutTimeZone,
+          isNullable: true,
+          dartType: 'DateTime?',
+        ),
+      ],
+      foreignKeys: [
+        _isp.ForeignKeyDefinition(
+          constraintName: 'promise_payment_schedule_fk_0',
+          columns: ['promiseId'],
+          referenceTable: 'promise',
+          referenceTableSchema: 'public',
+          referenceColumns: ['id'],
+          onUpdate: _isp.ForeignKeyAction.noAction,
+          onDelete: _isp.ForeignKeyAction.noAction,
+          matchType: null,
+        ),
+      ],
+      indexes: [
+        _isp.IndexDefinition(
+          indexName: 'promise_payment_schedule_promise_id_idx',
+          tableSpace: null,
+          elements: [
+            _isp.IndexElementDefinition(
+              type: _isp.IndexElementDefinitionType.column,
+              definition: 'promiseId',
+            ),
+          ],
+          type: 'btree',
+          isUnique: false,
+          isPrimary: false,
+        ),
+        _isp.IndexDefinition(
+          indexName: 'promise_payment_schedule_order_idx',
+          tableSpace: null,
+          elements: [
+            _isp.IndexElementDefinition(
+              type: _isp.IndexElementDefinitionType.column,
+              definition: 'promiseId',
+            ),
+            _isp.IndexElementDefinition(
+              type: _isp.IndexElementDefinitionType.column,
+              definition: 'installmentOrder',
+            ),
+          ],
+          type: 'btree',
+          isUnique: true,
+          isPrimary: false,
+        ),
+      ],
+      managed: true,
+    ),
     ..._iais.Protocol.targetTableDefinitions,
     ..._iacs.Protocol.targetTableDefinitions,
     ..._isp.Protocol.targetTableDefinitions,
@@ -501,6 +969,9 @@ class Protocol extends _is.DatabaseSerializationManager {
     if (t == _iqhyy8ir.DeadlineReminderObject) {
       return _iqhyy8ir.DeadlineReminderObject.fromJson(data) as T;
     }
+    if (t == _if1nqauc.GroupFinancialSummary) {
+      return _if1nqauc.GroupFinancialSummary.fromJson(data) as T;
+    }
     if (t == _iegghg43.ParentProjectMetadata) {
       return _iegghg43.ParentProjectMetadata.fromJson(data) as T;
     }
@@ -515,6 +986,18 @@ class Protocol extends _is.DatabaseSerializationManager {
     }
     if (t == _iwkf95uh.PromiseExpiryObject) {
       return _iwkf95uh.PromiseExpiryObject.fromJson(data) as T;
+    }
+    if (t == _ial6qs5u.PromiseFinancialSummary) {
+      return _ial6qs5u.PromiseFinancialSummary.fromJson(data) as T;
+    }
+    if (t == _ihzb06nf.PromiseFinancialTerms) {
+      return _ihzb06nf.PromiseFinancialTerms.fromJson(data) as T;
+    }
+    if (t == _imdaekze.PromisePaymentRecord) {
+      return _imdaekze.PromisePaymentRecord.fromJson(data) as T;
+    }
+    if (t == _i3vn3kwg.PromisePaymentSchedule) {
+      return _i3vn3kwg.PromisePaymentSchedule.fromJson(data) as T;
     }
     if (t == _is.getType<_i12ji7k4.AccountNotFoundException?>()) {
       return (data != null
@@ -548,6 +1031,12 @@ class Protocol extends _is.DatabaseSerializationManager {
               : null)
           as T;
     }
+    if (t == _is.getType<_if1nqauc.GroupFinancialSummary?>()) {
+      return (data != null
+              ? _if1nqauc.GroupFinancialSummary.fromJson(data)
+              : null)
+          as T;
+    }
     if (t == _is.getType<_iegghg43.ParentProjectMetadata?>()) {
       return (data != null
               ? _iegghg43.ParentProjectMetadata.fromJson(data)
@@ -571,6 +1060,36 @@ class Protocol extends _is.DatabaseSerializationManager {
               : null)
           as T;
     }
+    if (t == _is.getType<_ial6qs5u.PromiseFinancialSummary?>()) {
+      return (data != null
+              ? _ial6qs5u.PromiseFinancialSummary.fromJson(data)
+              : null)
+          as T;
+    }
+    if (t == _is.getType<_ihzb06nf.PromiseFinancialTerms?>()) {
+      return (data != null
+              ? _ihzb06nf.PromiseFinancialTerms.fromJson(data)
+              : null)
+          as T;
+    }
+    if (t == _is.getType<_imdaekze.PromisePaymentRecord?>()) {
+      return (data != null
+              ? _imdaekze.PromisePaymentRecord.fromJson(data)
+              : null)
+          as T;
+    }
+    if (t == _is.getType<_i3vn3kwg.PromisePaymentSchedule?>()) {
+      return (data != null
+              ? _i3vn3kwg.PromisePaymentSchedule.fromJson(data)
+              : null)
+          as T;
+    }
+    if (t == List<_ial6qs5u.PromiseFinancialSummary>) {
+      return (data as List)
+              .map((e) => deserialize<_ial6qs5u.PromiseFinancialSummary>(e))
+              .toList()
+          as T;
+    }
     if (t == List<_i36a1br3.UserSearchProfile>) {
       return (data as List)
               .map((e) => deserialize<_i36a1br3.UserSearchProfile>(e))
@@ -586,6 +1105,18 @@ class Protocol extends _is.DatabaseSerializationManager {
     if (t == List<_ir9c0j66.PromiseAttachment>) {
       return (data as List)
               .map((e) => deserialize<_ir9c0j66.PromiseAttachment>(e))
+              .toList()
+          as T;
+    }
+    if (t == List<_iby9nazs.PromisePaymentSchedule>) {
+      return (data as List)
+              .map((e) => deserialize<_iby9nazs.PromisePaymentSchedule>(e))
+              .toList()
+          as T;
+    }
+    if (t == List<_ixrmqdzt.PromisePaymentRecord>) {
+      return (data as List)
+              .map((e) => deserialize<_ixrmqdzt.PromisePaymentRecord>(e))
               .toList()
           as T;
     }
@@ -622,11 +1153,16 @@ class Protocol extends _is.DatabaseSerializationManager {
       _ih0s0cfq.AppNotification => 'AppNotification',
       _ipry8xt3.AttachmentUploadDescription => 'AttachmentUploadDescription',
       _iqhyy8ir.DeadlineReminderObject => 'DeadlineReminderObject',
+      _if1nqauc.GroupFinancialSummary => 'GroupFinancialSummary',
       _iegghg43.ParentProjectMetadata => 'ParentProjectMetadata',
       _i9knynp5.Promise => 'Promise',
       _itvtbfbt.PromiseActivity => 'PromiseActivity',
       _i64rwlud.PromiseAttachment => 'PromiseAttachment',
       _iwkf95uh.PromiseExpiryObject => 'PromiseExpiryObject',
+      _ial6qs5u.PromiseFinancialSummary => 'PromiseFinancialSummary',
+      _ihzb06nf.PromiseFinancialTerms => 'PromiseFinancialTerms',
+      _imdaekze.PromisePaymentRecord => 'PromisePaymentRecord',
+      _i3vn3kwg.PromisePaymentSchedule => 'PromisePaymentSchedule',
       _ => null,
     };
   }
@@ -655,6 +1191,8 @@ class Protocol extends _is.DatabaseSerializationManager {
         return 'AttachmentUploadDescription';
       case _iqhyy8ir.DeadlineReminderObject():
         return 'DeadlineReminderObject';
+      case _if1nqauc.GroupFinancialSummary():
+        return 'GroupFinancialSummary';
       case _iegghg43.ParentProjectMetadata():
         return 'ParentProjectMetadata';
       case _i9knynp5.Promise():
@@ -665,6 +1203,14 @@ class Protocol extends _is.DatabaseSerializationManager {
         return 'PromiseAttachment';
       case _iwkf95uh.PromiseExpiryObject():
         return 'PromiseExpiryObject';
+      case _ial6qs5u.PromiseFinancialSummary():
+        return 'PromiseFinancialSummary';
+      case _ihzb06nf.PromiseFinancialTerms():
+        return 'PromiseFinancialTerms';
+      case _imdaekze.PromisePaymentRecord():
+        return 'PromisePaymentRecord';
+      case _i3vn3kwg.PromisePaymentSchedule():
+        return 'PromisePaymentSchedule';
     }
     className = _iais.Protocol().getClassNameForObject(data);
     if (className != null) {
@@ -712,6 +1258,9 @@ class Protocol extends _is.DatabaseSerializationManager {
     if (dataClassName == 'DeadlineReminderObject') {
       return deserialize<_iqhyy8ir.DeadlineReminderObject>(data['data']);
     }
+    if (dataClassName == 'GroupFinancialSummary') {
+      return deserialize<_if1nqauc.GroupFinancialSummary>(data['data']);
+    }
     if (dataClassName == 'ParentProjectMetadata') {
       return deserialize<_iegghg43.ParentProjectMetadata>(data['data']);
     }
@@ -726,6 +1275,18 @@ class Protocol extends _is.DatabaseSerializationManager {
     }
     if (dataClassName == 'PromiseExpiryObject') {
       return deserialize<_iwkf95uh.PromiseExpiryObject>(data['data']);
+    }
+    if (dataClassName == 'PromiseFinancialSummary') {
+      return deserialize<_ial6qs5u.PromiseFinancialSummary>(data['data']);
+    }
+    if (dataClassName == 'PromiseFinancialTerms') {
+      return deserialize<_ihzb06nf.PromiseFinancialTerms>(data['data']);
+    }
+    if (dataClassName == 'PromisePaymentRecord') {
+      return deserialize<_imdaekze.PromisePaymentRecord>(data['data']);
+    }
+    if (dataClassName == 'PromisePaymentSchedule') {
+      return deserialize<_i3vn3kwg.PromisePaymentSchedule>(data['data']);
     }
     if (dataClassName.startsWith('serverpod_auth_idp.')) {
       data['className'] = dataClassName.substring(19);
@@ -778,6 +1339,12 @@ class Protocol extends _is.DatabaseSerializationManager {
         return _itvtbfbt.PromiseActivity.t;
       case _i64rwlud.PromiseAttachment:
         return _i64rwlud.PromiseAttachment.t;
+      case _ihzb06nf.PromiseFinancialTerms:
+        return _ihzb06nf.PromiseFinancialTerms.t;
+      case _imdaekze.PromisePaymentRecord:
+        return _imdaekze.PromisePaymentRecord.t;
+      case _i3vn3kwg.PromisePaymentSchedule:
+        return _i3vn3kwg.PromisePaymentSchedule.t;
     }
     return null;
   }

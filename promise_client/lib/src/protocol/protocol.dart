@@ -20,6 +20,10 @@ import 'package:promise_client/src/protocol/promises/promise_activity.dart'
     as _irwpjxuh;
 import 'package:promise_client/src/protocol/promises/promise_attachment.dart'
     as _iomala89;
+import 'package:promise_client/src/protocol/promises/promise_payment_record.dart'
+    as _i1cdgxy2;
+import 'package:promise_client/src/protocol/promises/promise_payment_schedule.dart'
+    as _i6r5712y;
 import 'package:serverpod_auth_core_client/serverpod_auth_core_client.dart'
     as _iacc;
 import 'package:serverpod_auth_idp_client/serverpod_auth_idp_client.dart'
@@ -32,11 +36,16 @@ import 'greetings/greeting.dart' as _izw8z7ou;
 import 'notifications/app_notification.dart' as _ih0s0cfq;
 import 'promises/attachment_upload_description.dart' as _ipry8xt3;
 import 'promises/deadline_reminder_object.dart' as _iqhyy8ir;
+import 'promises/group_financial_summary.dart' as _if1nqauc;
 import 'promises/parent_project_metadata.dart' as _iegghg43;
 import 'promises/promise.dart' as _i9knynp5;
 import 'promises/promise_activity.dart' as _itvtbfbt;
 import 'promises/promise_attachment.dart' as _i64rwlud;
 import 'promises/promise_expiry_object.dart' as _iwkf95uh;
+import 'promises/promise_financial_summary.dart' as _ial6qs5u;
+import 'promises/promise_financial_terms.dart' as _ihzb06nf;
+import 'promises/promise_payment_record.dart' as _imdaekze;
+import 'promises/promise_payment_schedule.dart' as _i3vn3kwg;
 export 'auth/account_not_found_exception.dart';
 export 'friends/friendship.dart';
 export 'friends/user_search_profile.dart';
@@ -44,11 +53,16 @@ export 'greetings/greeting.dart';
 export 'notifications/app_notification.dart';
 export 'promises/attachment_upload_description.dart';
 export 'promises/deadline_reminder_object.dart';
+export 'promises/group_financial_summary.dart';
 export 'promises/parent_project_metadata.dart';
 export 'promises/promise.dart';
 export 'promises/promise_activity.dart';
 export 'promises/promise_attachment.dart';
 export 'promises/promise_expiry_object.dart';
+export 'promises/promise_financial_summary.dart';
+export 'promises/promise_financial_terms.dart';
+export 'promises/promise_payment_record.dart';
+export 'promises/promise_payment_schedule.dart';
 export 'client.dart';
 
 class Protocol extends _isc.SerializationManager {
@@ -106,6 +120,9 @@ class Protocol extends _isc.SerializationManager {
     if (t == _iqhyy8ir.DeadlineReminderObject) {
       return _iqhyy8ir.DeadlineReminderObject.fromJson(data) as T;
     }
+    if (t == _if1nqauc.GroupFinancialSummary) {
+      return _if1nqauc.GroupFinancialSummary.fromJson(data) as T;
+    }
     if (t == _iegghg43.ParentProjectMetadata) {
       return _iegghg43.ParentProjectMetadata.fromJson(data) as T;
     }
@@ -120,6 +137,18 @@ class Protocol extends _isc.SerializationManager {
     }
     if (t == _iwkf95uh.PromiseExpiryObject) {
       return _iwkf95uh.PromiseExpiryObject.fromJson(data) as T;
+    }
+    if (t == _ial6qs5u.PromiseFinancialSummary) {
+      return _ial6qs5u.PromiseFinancialSummary.fromJson(data) as T;
+    }
+    if (t == _ihzb06nf.PromiseFinancialTerms) {
+      return _ihzb06nf.PromiseFinancialTerms.fromJson(data) as T;
+    }
+    if (t == _imdaekze.PromisePaymentRecord) {
+      return _imdaekze.PromisePaymentRecord.fromJson(data) as T;
+    }
+    if (t == _i3vn3kwg.PromisePaymentSchedule) {
+      return _i3vn3kwg.PromisePaymentSchedule.fromJson(data) as T;
     }
     if (t == _isc.getType<_i12ji7k4.AccountNotFoundException?>()) {
       return (data != null
@@ -153,6 +182,12 @@ class Protocol extends _isc.SerializationManager {
               : null)
           as T;
     }
+    if (t == _isc.getType<_if1nqauc.GroupFinancialSummary?>()) {
+      return (data != null
+              ? _if1nqauc.GroupFinancialSummary.fromJson(data)
+              : null)
+          as T;
+    }
     if (t == _isc.getType<_iegghg43.ParentProjectMetadata?>()) {
       return (data != null
               ? _iegghg43.ParentProjectMetadata.fromJson(data)
@@ -176,6 +211,36 @@ class Protocol extends _isc.SerializationManager {
               : null)
           as T;
     }
+    if (t == _isc.getType<_ial6qs5u.PromiseFinancialSummary?>()) {
+      return (data != null
+              ? _ial6qs5u.PromiseFinancialSummary.fromJson(data)
+              : null)
+          as T;
+    }
+    if (t == _isc.getType<_ihzb06nf.PromiseFinancialTerms?>()) {
+      return (data != null
+              ? _ihzb06nf.PromiseFinancialTerms.fromJson(data)
+              : null)
+          as T;
+    }
+    if (t == _isc.getType<_imdaekze.PromisePaymentRecord?>()) {
+      return (data != null
+              ? _imdaekze.PromisePaymentRecord.fromJson(data)
+              : null)
+          as T;
+    }
+    if (t == _isc.getType<_i3vn3kwg.PromisePaymentSchedule?>()) {
+      return (data != null
+              ? _i3vn3kwg.PromisePaymentSchedule.fromJson(data)
+              : null)
+          as T;
+    }
+    if (t == List<_ial6qs5u.PromiseFinancialSummary>) {
+      return (data as List)
+              .map((e) => deserialize<_ial6qs5u.PromiseFinancialSummary>(e))
+              .toList()
+          as T;
+    }
     if (t == List<_ihsmdl90.UserSearchProfile>) {
       return (data as List)
               .map((e) => deserialize<_ihsmdl90.UserSearchProfile>(e))
@@ -191,6 +256,18 @@ class Protocol extends _isc.SerializationManager {
     if (t == List<_iomala89.PromiseAttachment>) {
       return (data as List)
               .map((e) => deserialize<_iomala89.PromiseAttachment>(e))
+              .toList()
+          as T;
+    }
+    if (t == List<_i6r5712y.PromisePaymentSchedule>) {
+      return (data as List)
+              .map((e) => deserialize<_i6r5712y.PromisePaymentSchedule>(e))
+              .toList()
+          as T;
+    }
+    if (t == List<_i1cdgxy2.PromisePaymentRecord>) {
+      return (data as List)
+              .map((e) => deserialize<_i1cdgxy2.PromisePaymentRecord>(e))
               .toList()
           as T;
     }
@@ -224,11 +301,16 @@ class Protocol extends _isc.SerializationManager {
       _ih0s0cfq.AppNotification => 'AppNotification',
       _ipry8xt3.AttachmentUploadDescription => 'AttachmentUploadDescription',
       _iqhyy8ir.DeadlineReminderObject => 'DeadlineReminderObject',
+      _if1nqauc.GroupFinancialSummary => 'GroupFinancialSummary',
       _iegghg43.ParentProjectMetadata => 'ParentProjectMetadata',
       _i9knynp5.Promise => 'Promise',
       _itvtbfbt.PromiseActivity => 'PromiseActivity',
       _i64rwlud.PromiseAttachment => 'PromiseAttachment',
       _iwkf95uh.PromiseExpiryObject => 'PromiseExpiryObject',
+      _ial6qs5u.PromiseFinancialSummary => 'PromiseFinancialSummary',
+      _ihzb06nf.PromiseFinancialTerms => 'PromiseFinancialTerms',
+      _imdaekze.PromisePaymentRecord => 'PromisePaymentRecord',
+      _i3vn3kwg.PromisePaymentSchedule => 'PromisePaymentSchedule',
       _ => null,
     };
   }
@@ -257,6 +339,8 @@ class Protocol extends _isc.SerializationManager {
         return 'AttachmentUploadDescription';
       case _iqhyy8ir.DeadlineReminderObject():
         return 'DeadlineReminderObject';
+      case _if1nqauc.GroupFinancialSummary():
+        return 'GroupFinancialSummary';
       case _iegghg43.ParentProjectMetadata():
         return 'ParentProjectMetadata';
       case _i9knynp5.Promise():
@@ -267,6 +351,14 @@ class Protocol extends _isc.SerializationManager {
         return 'PromiseAttachment';
       case _iwkf95uh.PromiseExpiryObject():
         return 'PromiseExpiryObject';
+      case _ial6qs5u.PromiseFinancialSummary():
+        return 'PromiseFinancialSummary';
+      case _ihzb06nf.PromiseFinancialTerms():
+        return 'PromiseFinancialTerms';
+      case _imdaekze.PromisePaymentRecord():
+        return 'PromisePaymentRecord';
+      case _i3vn3kwg.PromisePaymentSchedule():
+        return 'PromisePaymentSchedule';
     }
     className = _iaic.Protocol().getClassNameForObject(data);
     if (className != null) {
@@ -310,6 +402,9 @@ class Protocol extends _isc.SerializationManager {
     if (dataClassName == 'DeadlineReminderObject') {
       return deserialize<_iqhyy8ir.DeadlineReminderObject>(data['data']);
     }
+    if (dataClassName == 'GroupFinancialSummary') {
+      return deserialize<_if1nqauc.GroupFinancialSummary>(data['data']);
+    }
     if (dataClassName == 'ParentProjectMetadata') {
       return deserialize<_iegghg43.ParentProjectMetadata>(data['data']);
     }
@@ -324,6 +419,18 @@ class Protocol extends _isc.SerializationManager {
     }
     if (dataClassName == 'PromiseExpiryObject') {
       return deserialize<_iwkf95uh.PromiseExpiryObject>(data['data']);
+    }
+    if (dataClassName == 'PromiseFinancialSummary') {
+      return deserialize<_ial6qs5u.PromiseFinancialSummary>(data['data']);
+    }
+    if (dataClassName == 'PromiseFinancialTerms') {
+      return deserialize<_ihzb06nf.PromiseFinancialTerms>(data['data']);
+    }
+    if (dataClassName == 'PromisePaymentRecord') {
+      return deserialize<_imdaekze.PromisePaymentRecord>(data['data']);
+    }
+    if (dataClassName == 'PromisePaymentSchedule') {
+      return deserialize<_i3vn3kwg.PromisePaymentSchedule>(data['data']);
     }
     if (dataClassName.startsWith('serverpod_auth_idp.')) {
       data['className'] = dataClassName.substring(19);

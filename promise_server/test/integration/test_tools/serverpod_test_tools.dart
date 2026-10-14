@@ -26,6 +26,8 @@ import 'package:promise_server/src/generated/promises/attachment_upload_descript
     as _i962fubg;
 import 'package:promise_server/src/generated/promises/deadline_reminder_object.dart'
     as _i7ah1uio;
+import 'package:promise_server/src/generated/promises/group_financial_summary.dart'
+    as _iwi3hp3v;
 import 'package:promise_server/src/generated/promises/parent_project_metadata.dart'
     as _isbkh1x8;
 import 'package:promise_server/src/generated/promises/promise.dart'
@@ -36,6 +38,14 @@ import 'package:promise_server/src/generated/promises/promise_attachment.dart'
     as _ir9c0j66;
 import 'package:promise_server/src/generated/promises/promise_expiry_object.dart'
     as _ij1k32us;
+import 'package:promise_server/src/generated/promises/promise_financial_summary.dart'
+    as _ieop4qru;
+import 'package:promise_server/src/generated/promises/promise_financial_terms.dart'
+    as _iwp2rq68;
+import 'package:promise_server/src/generated/promises/promise_payment_record.dart'
+    as _ixrmqdzt;
+import 'package:promise_server/src/generated/promises/promise_payment_schedule.dart'
+    as _iby9nazs;
 import 'package:serverpod/serverpod.dart' as _is;
 import 'package:serverpod_auth_core_server/serverpod_auth_core_server.dart'
     as _iacs;
@@ -187,6 +197,8 @@ class TestEndpoints {
 
   late final _AttachmentEndpoint attachment;
 
+  late final _FinancialEndpoint financial;
+
   late final _PromiseEndpoint promise;
 }
 
@@ -218,6 +230,10 @@ class _InternalTestEndpoints extends TestEndpoints
       serializationManager,
     );
     attachment = _AttachmentEndpoint(
+      endpoints,
+      serializationManager,
+    );
+    financial = _FinancialEndpoint(
       endpoints,
       serializationManager,
     );
@@ -1164,6 +1180,485 @@ class _AttachmentEndpoint {
                   _localCallContext.arguments,
                 )
                 as _ida.Future<_ir9c0j66.PromiseAttachment>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+}
+
+class _FinancialEndpoint {
+  _FinancialEndpoint(
+    this._endpointDispatch,
+    this._serializationManager,
+  );
+
+  final _is.EndpointDispatch _endpointDispatch;
+
+  final _is.SerializationManager _serializationManager;
+
+  _ida.Future<_ieop4qru.PromiseFinancialSummary> getFinancialSummary(
+    _ist.TestSessionBuilder sessionBuilder,
+    int promiseId,
+  ) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'financial',
+            method: 'getFinancialSummary',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'financial',
+          methodName: 'getFinancialSummary',
+          parameters: _ist.testObjectToJson({'promiseId': promiseId}),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<_ieop4qru.PromiseFinancialSummary>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _ida.Future<_iwi3hp3v.GroupFinancialSummary> getGroupFinancialSummary(
+    _ist.TestSessionBuilder sessionBuilder,
+    int parentPromiseId,
+  ) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'financial',
+            method: 'getGroupFinancialSummary',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'financial',
+          methodName: 'getGroupFinancialSummary',
+          parameters: _ist.testObjectToJson({
+            'parentPromiseId': parentPromiseId,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<_iwi3hp3v.GroupFinancialSummary>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _ida.Future<_iwp2rq68.PromiseFinancialTerms?> getFinancialTerms(
+    _ist.TestSessionBuilder sessionBuilder,
+    int promiseId,
+  ) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'financial',
+            method: 'getFinancialTerms',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'financial',
+          methodName: 'getFinancialTerms',
+          parameters: _ist.testObjectToJson({'promiseId': promiseId}),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<_iwp2rq68.PromiseFinancialTerms?>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _ida.Future<List<_iby9nazs.PromisePaymentSchedule>> getPaymentSchedule(
+    _ist.TestSessionBuilder sessionBuilder,
+    int promiseId,
+  ) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'financial',
+            method: 'getPaymentSchedule',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'financial',
+          methodName: 'getPaymentSchedule',
+          parameters: _ist.testObjectToJson({'promiseId': promiseId}),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<List<_iby9nazs.PromisePaymentSchedule>>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _ida.Future<List<_ixrmqdzt.PromisePaymentRecord>> getPaymentRecords(
+    _ist.TestSessionBuilder sessionBuilder,
+    int promiseId,
+  ) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'financial',
+            method: 'getPaymentRecords',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'financial',
+          methodName: 'getPaymentRecords',
+          parameters: _ist.testObjectToJson({'promiseId': promiseId}),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<List<_ixrmqdzt.PromisePaymentRecord>>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _ida.Future<_iwp2rq68.PromiseFinancialTerms> setFinancialTerms(
+    _ist.TestSessionBuilder sessionBuilder,
+    int promiseId,
+    int totalAmountMinorUnits,
+    String currency,
+    String payerUserId,
+    String payeeUserId,
+    String? notes,
+  ) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'financial',
+            method: 'setFinancialTerms',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'financial',
+          methodName: 'setFinancialTerms',
+          parameters: _ist.testObjectToJson({
+            'promiseId': promiseId,
+            'totalAmountMinorUnits': totalAmountMinorUnits,
+            'currency': currency,
+            'payerUserId': payerUserId,
+            'payeeUserId': payeeUserId,
+            'notes': notes,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<_iwp2rq68.PromiseFinancialTerms>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _ida.Future<List<_iby9nazs.PromisePaymentSchedule>> setPaymentSchedule(
+    _ist.TestSessionBuilder sessionBuilder,
+    int promiseId,
+    List<_iby9nazs.PromisePaymentSchedule> installments,
+  ) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'financial',
+            method: 'setPaymentSchedule',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'financial',
+          methodName: 'setPaymentSchedule',
+          parameters: _ist.testObjectToJson({
+            'promiseId': promiseId,
+            'installments': installments,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<List<_iby9nazs.PromisePaymentSchedule>>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _ida.Future<_iby9nazs.PromisePaymentSchedule>
+  cancelPaymentScheduleInstallment(
+    _ist.TestSessionBuilder sessionBuilder,
+    int scheduleId,
+    String? cancellationReason,
+  ) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'financial',
+            method: 'cancelPaymentScheduleInstallment',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'financial',
+          methodName: 'cancelPaymentScheduleInstallment',
+          parameters: _ist.testObjectToJson({
+            'scheduleId': scheduleId,
+            'cancellationReason': cancellationReason,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<_iby9nazs.PromisePaymentSchedule>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _ida.Future<_ixrmqdzt.PromisePaymentRecord> recordPayment(
+    _ist.TestSessionBuilder sessionBuilder,
+    int promiseId,
+    int? scheduleId,
+    int amountMinorUnits,
+    DateTime paymentDate,
+    String paymentMethod,
+    String? externalReference,
+    String? notes,
+    int? attachmentId,
+  ) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'financial',
+            method: 'recordPayment',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'financial',
+          methodName: 'recordPayment',
+          parameters: _ist.testObjectToJson({
+            'promiseId': promiseId,
+            'scheduleId': scheduleId,
+            'amountMinorUnits': amountMinorUnits,
+            'paymentDate': paymentDate,
+            'paymentMethod': paymentMethod,
+            'externalReference': externalReference,
+            'notes': notes,
+            'attachmentId': attachmentId,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<_ixrmqdzt.PromisePaymentRecord>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _ida.Future<_ixrmqdzt.PromisePaymentRecord> recordRefund(
+    _ist.TestSessionBuilder sessionBuilder,
+    int promiseId,
+    int originalPaymentRecordId,
+    int amountMinorUnits,
+    DateTime refundDate,
+    String paymentMethod,
+    String? externalReference,
+    String? notes,
+    int? attachmentId,
+  ) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'financial',
+            method: 'recordRefund',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'financial',
+          methodName: 'recordRefund',
+          parameters: _ist.testObjectToJson({
+            'promiseId': promiseId,
+            'originalPaymentRecordId': originalPaymentRecordId,
+            'amountMinorUnits': amountMinorUnits,
+            'refundDate': refundDate,
+            'paymentMethod': paymentMethod,
+            'externalReference': externalReference,
+            'notes': notes,
+            'attachmentId': attachmentId,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<_ixrmqdzt.PromisePaymentRecord>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _ida.Future<_ixrmqdzt.PromisePaymentRecord> confirmPaymentRecord(
+    _ist.TestSessionBuilder sessionBuilder,
+    int paymentRecordId,
+  ) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'financial',
+            method: 'confirmPaymentRecord',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'financial',
+          methodName: 'confirmPaymentRecord',
+          parameters: _ist.testObjectToJson({
+            'paymentRecordId': paymentRecordId,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<_ixrmqdzt.PromisePaymentRecord>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _ida.Future<_ixrmqdzt.PromisePaymentRecord> disputePaymentRecord(
+    _ist.TestSessionBuilder sessionBuilder,
+    int paymentRecordId,
+    String reason,
+  ) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'financial',
+            method: 'disputePaymentRecord',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'financial',
+          methodName: 'disputePaymentRecord',
+          parameters: _ist.testObjectToJson({
+            'paymentRecordId': paymentRecordId,
+            'reason': reason,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<_ixrmqdzt.PromisePaymentRecord>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _ida.Future<_ixrmqdzt.PromisePaymentRecord> cancelPaymentRecord(
+    _ist.TestSessionBuilder sessionBuilder,
+    int paymentRecordId,
+    String? cancellationReason,
+  ) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'financial',
+            method: 'cancelPaymentRecord',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'financial',
+          methodName: 'cancelPaymentRecord',
+          parameters: _ist.testObjectToJson({
+            'paymentRecordId': paymentRecordId,
+            'cancellationReason': cancellationReason,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<_ixrmqdzt.PromisePaymentRecord>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();

@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../client.dart';
 import '../utils/deadline_utils.dart';
+import '../widgets/financial_section.dart';
 import '../widgets/indicator_icon_button.dart';
 import 'add_update_screen.dart';
 
@@ -35,6 +36,13 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
   List<PromiseAttachment> _attachments = [];
   List<Promise> _childPromises = [];
   ParentProjectMetadata? _parentProject;
+
+  PromiseFinancialSummary? _financialSummary;
+  GroupFinancialSummary? _groupFinancialSummary;
+  PromiseFinancialTerms? _financialTerms;
+  List<PromisePaymentSchedule> _paymentSchedules = [];
+  List<PromisePaymentRecord> _paymentRecords = [];
+
   bool _isLoading = true;
   bool _isUpdatingStatus = false;
 
@@ -85,6 +93,54 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
           setState(() {
             _parentProject = parent;
           });
+        }
+      }
+      _loadFinancialData();
+    } catch (_) {}
+  }
+
+  Future<void> _loadFinancialData() async {
+    try {
+      if (_currentPromise.isGroupParent) {
+        final groupSummary = await client.financial.getGroupFinancialSummary(
+          widget.promiseId,
+        );
+        if (mounted) {
+          setState(() {
+            _groupFinancialSummary = groupSummary;
+          });
+        }
+      } else {
+        final summary = await client.financial.getFinancialSummary(
+          widget.promiseId,
+        );
+        if (summary.hasFinancials) {
+          final terms = await client.financial.getFinancialTerms(
+            widget.promiseId,
+          );
+          final schedules = await client.financial.getPaymentSchedule(
+            widget.promiseId,
+          );
+          final records = await client.financial.getPaymentRecords(
+            widget.promiseId,
+          );
+          if (mounted) {
+            setState(() {
+              _financialSummary = summary;
+              _financialTerms = terms;
+              _paymentSchedules = schedules;
+              _paymentRecords = records;
+            });
+          }
+        } else {
+          if (mounted) {
+            setState(() {
+              _financialSummary = summary;
+              _financialTerms = null;
+              _paymentSchedules = [];
+              _paymentRecords = [];
+            });
+          }
         }
       }
     } catch (_) {}
@@ -147,6 +203,8 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
         _parentProject = parentProject;
         _isLoading = false;
       });
+
+      _loadFinancialData();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -968,6 +1026,20 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
                     ],
                   ),
                 ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Embedded Financial Section
+              FinancialSection(
+                promise: _currentPromise,
+                currentUserId: currentAuthUserId ?? '',
+                summary: _financialSummary,
+                groupSummary: _groupFinancialSummary,
+                terms: _financialTerms,
+                schedules: _paymentSchedules,
+                records: _paymentRecords,
+                onRefreshNeeded: () => _loadData(showLoading: false),
               ),
 
               const SizedBox(height: 16),

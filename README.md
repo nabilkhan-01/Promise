@@ -1,28 +1,35 @@
-# Promise (v0.4.0)
+# Promise (v0.5.0)
 
 Promise helps people turn everyday agreements into clear, trackable, and documented commitments.
 
-Whether delivering a project, submitting an assignment, completing a milestone, or confirming completion between two parties, Promise provides a reliable way to keep track of everyday commitments from creation to final two-sided confirmation.
+Whether delivering a project, submitting an assignment, completing a milestone, or confirming payment and completion between two parties, Promise provides a reliable way to keep track of everyday commitments from creation to final two-sided confirmation.
 
-Promise is built around a fundamental rule: **a commitment is not officially complete until both sides confirm it.**
+Promise is built around two fundamental rules:
+1. **Work completion is not officially recognized until both sides confirm it.**
+2. **Promise records offline financial payments and refunds; it does not process or transfer money.**
 
 ---
 
-## Why Promise?
+## What's New in v0.5.0
 
-Every day, people make informal agreements — "I'll review your code by tomorrow," "I'll submit the report on Friday," or "I'll return the equipment by noon." Without a dedicated framework, these verbal or chat-based agreements lack structure, clear deadlines, progress tracking, and mutually acknowledged completion.
+Version 0.5.0 introduces optional financial tracking and an enhanced mobile-first user experience:
 
-Promise solves this problem by turning everyday agreements into structured commitments with:
-- **Verified Participants:** Agreements made between accepted friends.
-- **Recipient Acceptance:** Recipient must explicitly accept an invitation before progress tracking begins.
-- **Clear Terms & Schedules:** Timezone-safe due dates and optional due times.
-- **Chronological History:** Auditable timeline of progress updates and status changes.
-- **Two-Party Confirmation:** Completion is only recognized when both Creator and Recipient confirm.
-- **Documented Change Requests:** A formal mechanism to request and record changes if circumstances evolve.
-- **Private Attachments & Receipts:** Attach evidence or receipts for cross-party approval.
-- **Nested Group Promises & Project Milestones:** Create parent container commitments with sub-tasks assigned to different friends or multiple milestones for a single contractor.
-- **Unified Commitment Types:** Seamlessly organize personal commitments, freelance client agreements, and team coordination.
-- **Terminal Finality:** Completed commitments are archived as immutable, read-only records.
+- **Dedicated `promise_currency` Package:** Pure-Dart shared package containing the authoritative SIX / ISO 4217 Table A.1 dataset (`IsoCurrencyCatalogue`) and exact string-to-minor-unit parser/formatter (`CurrencyUtils`). Supports all worldwide active currencies (0, 2, and 3 minor-unit decimal precision) without floating-point math or rounding drift.
+- **Optional Financial Terms:** Configure agreed contract totals, active ISO 4217 currencies, and Payer/Payee roles for 1-on-1 commitments or individual child milestones. Terms become strictly read-only once payment or refund records exist.
+- **Installment Schedules:** Multi-installment schedule entries (`PromisePaymentSchedule`) with sequence order, amounts, due dates, and cancellation audit metadata (`cancelledAt`, `cancelledByUserId`, `cancellationReason`).
+- **Offline Payment & Refund Recording:** Log external payments and refunds (`PromisePaymentRecord`). Refunds inherit `scheduleId` and `currency` from the original payment and enforce a strict refund ceiling ($\sum \text{confirmedRefunds} \le \text{originalPayment}$) protected by PostgreSQL row locking (`SELECT id FROM promise_payment_record ... FOR UPDATE`).
+- **Unified Two-Party Confirmation & Dispute:** Unified confirmation (`confirmPaymentRecord`) and dispute (`disputePaymentRecord`) endpoints with strict anti-self-confirmation and anti-self-dispute rules (`confirmerUserId != recorderUserId`).
+- **Permanent Immutability of Confirmed Records:** Confirmed payment and refund records are permanently immutable. Post-confirmation offline challenges are logged via separate audited offline refunds (`recordKind: 'refund'`).
+- **Two-Dimensional Financial Summary Engine:**
+  - **Settlement Progress (`settlementStatus`):** `none`, `unpaid`, `partially_paid`, `paid`, `overpaid` derived from net confirmed settlement ($\text{payments} - \text{refunds}$).
+  - **Refund History (`refundStatus`):** `none`, `partially_refunded`, `fully_refunded` preserving past payment history even when net settlement drops to 0.
+  - **Active Dispute Indicator (`hasActiveDispute`):** Independent boolean flag highlighting pending disputes without altering numeric ledger totals.
+- **Multi-Currency Parent Project Overviews:** Group parent containers display aggregate totals grouped separately by currency (`GroupFinancialSummary`) without currency conversion or double-counting. Sibling child milestones remain strictly isolated.
+- **Mobile-First Flutter UX:**
+  - Searchable `CurrencyPickerModal` bottom sheet modal.
+  - `SetFinancialTermsDialog` and `RecordPaymentDialog` with private evidence receipt attachment support via `AttachmentEndpoint`.
+  - Embedded `FinancialSection` on `PromiseDetailsScreen` with progress bar, status badges, active dispute warning banner, installment schedule checklist, and payment/refund history cards with role-aware action buttons.
+  - Responsive layouts verified across 320px, 360px, 390px, and 430px logical viewports with 1.3x system text scaling.
 
 ---
 
@@ -40,76 +47,51 @@ Promise solves this problem by turning everyday agreements into structured commi
 - **Server-Side Credentials:** Brevo API keys (`brevoApiKey`) are stored exclusively in Serverpod Cloud secrets / `config/passwords.yaml` and are never exposed to the Flutter client.
 - **Password Reset Flow:** Complete email-verified password reset with secure 6-digit code verification.
 - **Disposable Email Protection:** Authoritative server-side and client-side validation rejecting temporary/disposable email domain providers (e.g., Mailinator, TempMail).
-- **User-Facing Error Feedback:** Human-readable error feedback for invalid credentials, unregistered email reset requests, duplicate sign-ups, expired/incorrect verification codes, and network issues.
-- **Session Persistence:** Authenticated user sessions persist automatically across app restarts via `FlutterAuthSessionManager`.
-- **Sign Out:** Secure session token revocation and sign out.
+- **Session Persistence & Sign Out:** Authenticated user sessions persist automatically across app restarts via `FlutterAuthSessionManager`.
 
 ### Friends System
-- **User Search:** Search registered Promise users by email or username.
-- **Friend Requests:** Send, view pending, accept, and reject friend requests.
-- **Friend Removal:** Remove existing friendships when necessary.
+- **User Search & Friend Requests:** Search registered users by email or username, send/view/accept/reject friend requests, and remove friendships.
 - **Friendship-Enforced Commitments:** Promises can only be created for accepted friends.
-- **Backend Authorization & Concurrency Safety:** Friendship relationships and privacy rules are enforced on the server within isolated database transactions protected by canonical PostgreSQL advisory locking (`pg_advisory_xact_lock`) and `FOR UPDATE` row locks, preventing duplicate or conflicting relationship records under concurrent requests.
+- **Backend Authorization & Concurrency Safety:** Friendship relationships are enforced on the server within isolated database transactions protected by canonical PostgreSQL advisory locking (`pg_advisory_xact_lock`) and `FOR UPDATE` row locks.
 
 ### Promise Management, Commitment Types & Milestones
 - **Unified Commitment Classification:** Explicit `commitmentType` support for `Personal` (1-on-1 favors/tasks), `Freelance` (client/contractor agreements), and `Team` (multi-member group projects) with interactive filter chips on the main Dashboard.
-- **Deterministic Legacy Fallback Policy:** Legacy 1-on-1 commitments evaluate to `Personal`, legacy group parent containers evaluate to `Team`, and child sub-tasks inherit their parent project's commitment type.
-- **Project Milestone Sequence Ordering:** Optional `milestoneOrder` sequence numbering ($1, 2, 3...$) for child sub-tasks under group parent promises, sorted deterministically with fallback to deadline order.
-- **Repeated Milestones per Contractor:** Group creation permits assigning multiple milestones/sub-tasks to the same accepted recipient friend in a single contract while preserving friend authorization.
-- **Read-Only Parent Metadata Endpoint:** Security-hardened `getParentProjectMetadata` RPC endpoint allowing assigned freelancers/child recipients to view parent project title, description, and commitment type without exposing full parent DB entities, activities, or attachments.
-- **Strict Participant Authorization & Sibling Isolation:** Enforces strict caller checks (`_isDirectParticipant`) so child recipients can only access their assigned sub-tasks. Sibling sub-tasks, descriptions, activities, and attachments remain strictly isolated.
-- **Recipient Acceptance Workflow:** Newly created promises start in an unaccepted state (`recipientAccepted: false`). The assigned recipient must explicitly accept the invitation before work operations (progress updates, completion confirmations, change requests, evidence uploads) can proceed.
-- **7-Day Invitation Expiry & Status Recalculation:** Unaccepted promise invitations automatically expire after 7 days via Serverpod FutureCalls (`PromiseExpiryFutureCall`). When a child promise expires, remaining children automatically recalculate the parent's overall status (`PromiseLifecycleHelper.updateParentStatusIfNeeded`) inside the cleanup transaction.
-- **Create Promise:** Log new commitments specifying title, commitment type, recipient friend, optional description, timezone-safe due date, and optional due time.
-- **Derived Parent Progress:** Parent status is automatically derived from its children (`pending` -> `in_progress` -> `completed` when all children are finished). Direct manual status overrides or completion on parents are strictly blocked.
-- **Timezone-Safe Deadlines:** Date-only deadlines are saved as UTC midnight (`DateTime.utc`) to prevent calendar date shifts across global timezones. Legacy records maintain backward-compatible local time rendering.
-- **Tabbed & Filtered Dashboard:** Clean Material 3 dashboard with `All`, `Personal`, `Freelance`, and `Team` filter chips organized into two status sections:
-  - **Current (`pending`, `in_progress`, `awaiting_confirmation`):** Sorted strictly by nearest due date and due time first, with visual indicators (`Overdue by X days`, `Due today`, `Due tomorrow`, `Due Oct 14`, `Awaiting acceptance`).
-  - **Completed (`completed`):** Archived commitments sorted newest first.
+- **Project Milestone Sequence Ordering:** Optional `milestoneOrder` sequence numbering ($1, 2, 3...$) for child sub-tasks under group parent promises.
+- **Read-Only Parent Metadata Endpoint:** Security-hardened `getParentProjectMetadata` RPC endpoint allowing assigned child recipients to view parent project context without exposing sibling activities, attachments, or financial records.
+- **Strict Participant Authorization & Sibling Isolation:** Enforces strict caller checks (`_isDirectParticipant`) so child recipients can only access their assigned sub-tasks. Sibling sub-tasks and financial records remain strictly isolated.
+- **Recipient Acceptance Workflow:** Newly created promises start in an unaccepted state (`recipientAccepted: false`). Assigned recipients must accept the invitation before work or financial operations can proceed.
+- **7-Day Invitation Expiry & Status Recalculation:** Unaccepted promise invitations automatically expire after 7 days via Serverpod FutureCalls (`PromiseExpiryFutureCall`).
+- **Timezone-Safe Deadlines:** Date-only deadlines are saved as UTC midnight (`DateTime.utc`) to prevent calendar date shifts across global timezones.
 
 ### Receipts & Private File Attachments
-- **Serverpod Private Storage:** Attach documents (PDFs) or images (PNG, JPEG) up to 10 MB per file.
-- **Authorized Uploads & Downloads:** Upload descriptions and 15-minute temporary download URLs are strictly restricted to authorized Promise participants.
-- **Upload Progress & UI Component:** Step-by-step progress feedback (`Preparing upload...` -> `Uploading {file}...` -> `Verifying attachment...` -> `Upload complete`) with linear progress indicators.
-- **Reusable `IndicatorIconButton` Component:** Null-safe, animated Material 3 button component (`promise_flutter/lib/widgets/indicator_icon_button.dart`) with smooth `AnimatedSwitcher` transitions between normal, loading spinner, and success checkmark states.
-- **Cross-Party Review:** Non-uploading participants can approve or reject submitted receipts with optional rejection reasons.
-- **Preserved History:** Uploading a replacement receipt creates a new record while keeping previous review history intact for auditing.
+- **Serverpod Private Storage:** Attach documents (PDFs) or images (PNG, JPEG) up to 10 MB per file to commitments or payment records.
+- **Authorized Uploads & Downloads:** Temporary 15-minute download URLs are strictly restricted to authorized participants.
+- **Upload Progress UI:** Step-by-step progress feedback with linear progress indicators.
+- **Cross-Party Review:** Non-uploading participants can approve or reject submitted receipts.
 
 ### Persistent In-App Notifications & Scheduled Reminders
 - **Serverpod + PostgreSQL Notifications:** Full in-app notification engine with persistent database storage (`AppNotification`).
-- **Event-Driven Notifications:** Triggered automatically on key events:
-  - **Friends:** `friend_request`, `friend_request_accepted`
-  - **Promises:** `promise_created`, `promise_updated`, `promise_status_changed`, `change_requested`, `confirmation_requested`, `promise_completed`
-- **Deduplicated Deadline Reminders:** Scheduled via Serverpod FutureCalls (`DeadlineReminderFutureCall`) 24 hours prior to effective deadlines. Notification database deduplication guarantees exactly one reminder per participant per deadline, resisting server retries or duplicate executions.
-- **Late Acceptance Handling:** Accepting a promise within 24 hours of its deadline triggers an immediate timezone-neutral deadline reminder (*"Deadline reminder: '$title' is approaching. Please check its due date."*).
-- **Dashboard Notification Bell:** App bar notification bell (`🔔`) featuring an unread count badge and periodic background refresh polling while active.
-- **`NotificationsScreen`:** Mobile-first screen grouped by `TODAY` and `EARLIER` with unread emphasis, type-specific visual icons, relative timestamps (`5m ago`), "Mark all as read", and tap-to-navigate directly to the referenced Promise or Friend Request.
-- **Authenticated Isolation:** Endpoint authorization ensures users can only read or update their own notifications.
+- **Event-Driven Notifications:** Triggered automatically on friends, promise updates, and financial activity (payment recorded, confirmed, disputed).
+- **Deduplicated Deadline Reminders:** Scheduled via Serverpod FutureCalls (`DeadlineReminderFutureCall`) 24 hours prior to effective deadlines.
+- **`NotificationsScreen`:** Mobile-first screen grouped by `TODAY` and `EARLIER` with unread emphasis, relative timestamps (`5m ago`), "Mark all as read", and tap-to-navigate directly to the referenced Promise or Friend Request.
 
 ### Activity Timeline & Status Tracking
-- **Chronological Timeline:** Log tracking creation events, progress updates, status changes, change requests, and completion confirmations.
-- **Progress Updates:** Participants can log updates with custom messages and individual activity statuses via the full-screen `AddUpdateScreen`.
-- **Independent Activity Statuses:** Activity progress statuses (`Pending`, `In Progress`, `Completed`) operate independently of the overall Promise status.
-- **Responsive Status Progress Component:**
-  - Responsive visual progress control clearly displaying:
-    ```text
-    Pending ──> In Progress ──> Awaiting Confirmation ──> Completed
-    ```
-  - Adapts automatically to a horizontal step layout on wide screens and a vertical step-connected timeline on mobile portrait screens (< 480px), eliminating text wrapping on small displays.
-- **Two-Party Completion Rule & Role Awareness:**
-  - Explicit user role callout (`Your Role: Creator` / `Your Role: Recipient`).
-  - First party confirmation transitions overall status to `Awaiting Confirmation`.
-  - Second party confirmation transitions overall status to `Completed`.
-- **Terminal Completed State:** Once both parties confirm, a Promise enters `Completed` status and becomes strictly read-only. Further updates, confirmations, status changes, or change requests are permanently blocked.
+- **Chronological Timeline:** Log tracking creation events, progress updates, status changes, change requests, financial activity, and completion confirmations.
+- **Progress Updates:** Log updates with custom messages and individual activity statuses via the full-screen `AddUpdateScreen`.
+- **Two-Party Completion Rule:** First party confirmation transitions overall status to `Awaiting Confirmation`. Second party confirmation transitions overall status to `Completed`.
+- **Terminal Completed State:** Once both parties confirm, a Promise enters `Completed` status and becomes strictly read-only.
 
 ---
 
 ## Tech Stack
 
 ### Frontend
-- **Framework:** Flutter `0.4.0+6` (Android-first cross-platform UI)
+- **Framework:** Flutter `3.29+` (Mobile-first cross-platform UI)
 - **Language:** Dart
-- **Design System:** Material 3
+- **Design System:** Material 3 with Inter typography
+
+### Shared Packages
+- **`promise_currency`:** Pure-Dart ISO 4217 currency catalogue and exact minor-unit arithmetic engine.
 
 ### Backend
 - **Framework:** Serverpod 4.0.3
@@ -125,34 +107,6 @@ Promise solves this problem by turning everyday agreements into structured commi
 
 ---
 
-## AI-Assisted Development & Disclosure
-
-Promise was developed using AI-assisted engineering tools alongside developer-driven product vision, architecture decisions, debugging, code review, and manual release verification.
-
-### AI Tools Used
-
-- **ChatGPT:** Used for initial product strategy, architectural brainstorming, technical guidance, debugging analysis, test planning, code review, and documentation drafting.
-- **Google Gemini (Gemini Agent Mode):** Used for repository-aware implementation, codebase inspection, endpoint and widget development, test suite expansion, error diagnosis, and code formatting.
-
-### Developer Responsibilities & Ownership
-
-While AI tooling assisted in generating and refining portions of the codebase, **the project vision, architectural design, debugging direction, and release decisions were strictly owned and led by the project developer**.
-
-The developer was directly responsible for:
-
-- **Product Vision & Roadmap:** Defining the core concept, user workflows, feature requirements, priorities, and project milestones.
-- **Architecture & Technical Decisions:** Deciding the system design, data models, state management patterns, endpoint structures, and security authorization rules.
-- **Debugging & Root-Cause Investigation:** Identifying bugs, investigating failure modes, directing troubleshooting, evaluating candidate fixes, and choosing the appropriate resolution.
-- **Test Strategy & Acceptance Criteria:** Defining test scenarios, acceptance criteria, expected behaviors, reviewing test coverage, and evaluating test suite results.
-- **Code Review & Quality Control:** Inspecting all diffs, questioning generated implementation choices, ensuring backward compatibility, and deciding which changes to retain, modify, or reject.
-- **Release Management & Physical Verification:** Managing versioning, configuring deployment parameters, preparing releases, and performing manual physical-device testing.
-
-AI-generated suggestions and code blocks were evaluated critically as assistance. Automated test suite execution was supplemented by manual physical-device verification to confirm end-to-end functionality.
-
-**Disclosure:** Promise is an AI-assisted software project. ChatGPT and Google Gemini contributed to planning, implementation, codebase analysis, debugging, testing, and documentation support. The project developer maintained full ownership and responsibility for product direction, technical choices, code approval, and release validation.
-
----
-
 ## Getting Started & Local Development
 
 ### Prerequisites
@@ -160,7 +114,6 @@ AI-generated suggestions and code blocks were evaluated critically as assistance
 - [Dart SDK](https://dart.dev/get-started/sdk)
 - [Serverpod CLI 4.0.3](https://docs.serverpod.dev/) (`dart pub global activate serverpod_cli`)
 - [Docker Desktop](https://www.docker.com/)
-- Android Studio / Android Emulator
 
 ### Local Development Setup (Windows PowerShell)
 
@@ -181,6 +134,14 @@ AI-generated suggestions and code blocks were evaluated critically as assistance
 
 ## Development Commands
 
+### Shared Currency Package (`promise_currency`)
+```powershell
+cd D:\GITHUB_REPOS\PROMISE\promise_currency
+dart format .
+dart analyze
+dart test
+```
+
 ### Serverpod Backend (`promise_server`)
 ```powershell
 cd D:\GITHUB_REPOS\PROMISE\promise_server
@@ -192,7 +153,7 @@ serverpod generate
 dart format .
 dart analyze
 
-# Run backend unit and integration tests
+# Run backend unit and integration tests (including financial & concurrency tests)
 dart test -j 1
 ```
 
@@ -210,62 +171,40 @@ flutter test
 
 ---
 
-## Database Migrations and Deployment
-
-- **v0.4.0 Migration Artifacts:** The database migration for this release is located at
-  `promise_server/migrations/20261013172415430-v0-4-0-core-model/`.
-- **Additive Schema Updates:** This migration adds the `commitmentType` and `milestoneOrder` columns
-  to the `promise` table.
-- **Serverpod Cloud Deployments:** Serverpod Cloud automatically applies pending database migrations
-  during deployment.
-- **Self-Hosted Deployments:** For self-hosted instances, migrations must be applied to PostgreSQL
-  using the appropriate Serverpod migration workflow (`serverpod apply-migrations` or executing
-  `migration.sql`).
-- **Deployment Order Constraint:** The backend deployment must succeed before deploying client
-  application updates that invoke the new `getParentProjectMetadata` RPC endpoint.
-- **Production Verification:** Live cloud-storage (AWS S3/GCP), physical-device testing, and
-  deployed Serverpod Cloud `FutureCall` execution checks remain part of production verification.
-
----
-
 ## Testing & Verification
 
-### Automated Backend Tests (`dart test -j 1`)
-- [x] Disposable email validator unit tests (`disposable_email_validator_test.dart`).
-- [x] Email IDP endpoint integration tests (`email_idp_endpoint_test.dart`).
-- [x] Email registration duplicate detection & `checkEmailRegistration` integration tests (`email_idp_registration_test.dart`).
-- [x] Attachment endpoint security & upload integration tests (`attachment_endpoint_test.dart`).
-- [x] Group promise atomic creation, repeated recipients, milestone sorting, and derived lifecycle integration tests (`group_promise_test.dart`).
-- [x] Promise acceptance, 7-day expiry, parent recalculation, and deduplicated deadline reminder integration tests (`promise_acceptance_and_future_calls_test.dart`).
-- [x] Friend endpoint concurrency, transactional boundaries with advisory locks, and lifecycle integration tests (`friend_endpoint_test.dart`).
-- [x] All server integration tests passing (**55 / 55** tests).
+### Automated Shared Currency Tests (`promise_currency`)
+- [x] ISO 4217 catalogue validation, non-empty codes, and search filters (`currency_test.dart`).
+- [x] Exact minor-unit parsing without floating-point math (`0`, `2`, `3` decimal precision).
+- [x] All `promise_currency` tests passing (**14 / 14** tests).
 
-### Automated Flutter Tests (`flutter test`)
-- [x] Timezone-safe deadline rendering and sorting tests (`deadline_utils_test.dart`).
-- [x] `IndicatorIconButton` widget unit tests (`indicator_icon_button_test.dart`).
-- [x] Auth controller & duplicate signup error flow tests (`sign_in_screen_test.dart`).
-- [x] Effective commitment type policy unit tests (`widget_test.dart`).
-- [x] All Flutter tests passing (**25 / 25** tests).
+### Automated Backend Tests (`promise_server` - `dart test -j 1`)
+- [x] Attachment endpoint security & upload integration tests (`attachment_endpoint_test.dart`).
+- [x] Email IDP registration duplicate pre-checks (`email_idp_registration_test.dart`).
+- [x] Financial models & ORM schema tests (`financial_models_test.dart`).
+- [x] Financial RPC endpoint authorization, terms lock, refund ceiling, anti-self-confirmation, and 100% refund state tests (`financial_endpoint_test.dart`).
+- [x] Real PostgreSQL row-locking concurrency tests (`financial_concurrency_test.dart`).
+- [x] Friend endpoint concurrency with advisory locks (`friend_endpoint_test.dart`).
+- [x] All server integration tests passing (**81 / 81** tests).
+
+### Automated Flutter Tests (`promise_flutter` - `flutter test`)
+- [x] Timezone-safe deadline rendering tests (`deadline_utils_test.dart`).
+- [x] Sign-in & email auth flow tests (`sign_in_screen_test.dart`).
+- [x] `IndicatorIconButton` widget tests (`indicator_icon_button_test.dart`).
+- [x] Mobile responsive layout tests across 320px, 360px, 390px, 430px viewports & 1.3x text scaling (`responsive_screens_test.dart`).
+- [x] Financial Section UI tests, minor-unit formatting, dispute banners, and searchable currency picker (`financial_section_test.dart`).
+- [x] All Flutter widget/unit tests passing (**35 / 35** tests).
 
 ### Static Analysis
-- [x] `promise_server`: Clean (**0 issues**).
+- [x] `promise_currency`: Clean (**0 issues**).
 - [x] `promise_client`: Clean (**0 issues**).
+- [x] `promise_server`: Clean (**0 issues**).
 - [x] `promise_flutter`: Clean (**0 issues**).
-
----
-
-## Security & Known Limitations
-
-- **Security & Authorization:** Strict participant-level authorization on all promises, activities, attachments, and notifications. Sibling isolation is enforced on Group Promises so recipients can only access their assigned sub-tasks. Read-only parent metadata access (`getParentProjectMetadata`) restricts payload fields.
-- **7-Day Expiry & Reminders:** Background execution uses Serverpod FutureCalls verified via automated integration tests (`promise_acceptance_and_future_calls_test.dart`). Full production verification depends on Serverpod Cloud execution.
-- **Physical Device & Cloud Storage:** Upload verification and launcher icon rendering have been tested on local embedded storage; physical Android device testing against live cloud storage will be performed manually prior to production deployment.
-- **30-Day Attachment Pruning:** Automatic background cleanup of 30-day unreviewed attachments or orphaned files remains deferred (for post-hackathon) to avoid untested database cron jobs.
-- **Malware Scanning:** File uploads validate 10 MB limits and MIME types (`pdf`, `png`, `jpeg`), but do not perform deep byte-level antivirus scanning.
 
 ---
 
 ## Status
 
-Promise v0.4.0 is a full-stack Serverpod 4.0.3 + Flutter application. All features — launcher branding, recipient acceptance, 7-day invitation expiry, deduplicated deadline reminders, duplicate-account detection, Brevo email authentication, transactional friends system with advisory lock concurrency protection, time-safe promises, commitment types (Personal, Freelance, Team), project milestone sequence ordering, read-only parent project metadata authorization, private receipt attachments, `IndicatorIconButton` animated UI feedback, in-app notifications, and PostgreSQL persistence — are implemented, verified, and passing all automated test suites.
+Promise v0.5.0 is complete. All features — shared currency package, financial terms, payment schedules, offline payment/refund recording, two-party confirmation/dispute resolution, two-dimensional financial summaries, multi-currency parent project overviews, searchable currency picker, mobile-first responsive Flutter UI, and persistent in-app notifications — are implemented, verified, and passing all automated test suites across the monorepo workspace.
 
 **Repository:** [https://github.com/nabilkhan-01/Promise](https://github.com/nabilkhan-01/Promise)

@@ -1,0 +1,20 @@
+class: PromisePaymentSchedule
+table: promise_payment_schedule
+fields:
+  promiseId: int, relation(parent=promise)
+  installmentOrder: int
+  amountMinorUnits: int
+  currency: String
+  dueDate: DateTime
+  cancelledAt: DateTime?
+  cancelledByUserId: String?
+  cancellationReason: String?
+  notes: String?
+  createdAt: DateTime
+  updatedAt: DateTime?
+indexes:
+  promise_payment_schedule_promise_id_idx:
+    fields: promiseId
+  promise_payment_schedule_order_idx:
+    fields: promiseId, installmentOrder
+    unique: true

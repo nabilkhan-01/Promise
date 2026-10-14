@@ -1,0 +1,33 @@
+class: PromisePaymentRecord
+table: promise_payment_record
+fields:
+  promiseId: int, relation(parent=promise)
+  scheduleId: int?, relation(parent=promise_payment_schedule)
+  recordKind: String
+  reversesPaymentRecordId: int?, relation(parent=promise_payment_record)
+  recorderUserId: String
+  payerUserId: String
+  payeeUserId: String
+  amountMinorUnits: int
+  currency: String
+  paymentDate: DateTime
+  paymentMethod: String
+  externalReference: String?
+  notes: String?
+  attachmentId: int?, relation(parent=promise_attachment)
+  status: String, default="pending_confirmation"
+  confirmedAt: DateTime?
+  confirmerUserId: String?
+  disputedAt: DateTime?
+  disputerUserId: String?
+  disputeReason: String?
+  cancelledAt: DateTime?
+  cancellerUserId: String?
+  cancellationReason: String?
+  createdAt: DateTime
+  updatedAt: DateTime?
+indexes:
+  promise_payment_record_promise_id_idx:
+    fields: promiseId
+  promise_payment_record_reverses_idx:
+    fields: reversesPaymentRecordId

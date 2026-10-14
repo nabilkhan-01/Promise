@@ -22,6 +22,8 @@ import 'package:promise_client/src/protocol/notifications/app_notification.dart'
     as _iim66qok;
 import 'package:promise_client/src/protocol/promises/attachment_upload_description.dart'
     as _iusvgnae;
+import 'package:promise_client/src/protocol/promises/group_financial_summary.dart'
+    as _itapcso4;
 import 'package:promise_client/src/protocol/promises/parent_project_metadata.dart'
     as _ip0spzl9;
 import 'package:promise_client/src/protocol/promises/promise.dart' as _izrd4uei;
@@ -29,6 +31,14 @@ import 'package:promise_client/src/protocol/promises/promise_activity.dart'
     as _irwpjxuh;
 import 'package:promise_client/src/protocol/promises/promise_attachment.dart'
     as _iomala89;
+import 'package:promise_client/src/protocol/promises/promise_financial_summary.dart'
+    as _itw7fe1u;
+import 'package:promise_client/src/protocol/promises/promise_financial_terms.dart'
+    as _ips6gtr9;
+import 'package:promise_client/src/protocol/promises/promise_payment_record.dart'
+    as _i1cdgxy2;
+import 'package:promise_client/src/protocol/promises/promise_payment_schedule.dart'
+    as _i6r5712y;
 import 'package:serverpod_auth_core_client/serverpod_auth_core_client.dart'
     as _iacc;
 import 'package:serverpod_auth_idp_client/serverpod_auth_idp_client.dart'
@@ -431,6 +441,198 @@ class EndpointAttachment extends _isc.EndpointRef {
   );
 }
 
+/// Serverpod endpoint for Stage 3 Financial RPC operations,
+/// enforcing exact minor-unit arithmetic, two-party confirmation state machine,
+/// immutable confirmed history, refund ceiling limits, PostgreSQL row locking,
+/// and sibling financial isolation.
+/// {@category Endpoint}
+class EndpointFinancial extends _isc.EndpointRef {
+  EndpointFinancial(_isc.EndpointCaller caller) : super(caller);
+
+  @override
+  String get name => 'financial';
+
+  /// Returns the financial summary DTO for a 1-on-1 promise or child milestone.
+  /// For a group parent promise, returns a multi-currency [GroupFinancialSummary] for the creator.
+  _ida.Future<_itw7fe1u.PromiseFinancialSummary> getFinancialSummary(
+    int promiseId,
+  ) => caller.callServerEndpoint<_itw7fe1u.PromiseFinancialSummary>(
+    'financial',
+    'getFinancialSummary',
+    {'promiseId': promiseId},
+  );
+
+  /// Returns multi-currency GroupFinancialSummary DTO for a group parent project.
+  _ida.Future<_itapcso4.GroupFinancialSummary> getGroupFinancialSummary(
+    int parentPromiseId,
+  ) => caller.callServerEndpoint<_itapcso4.GroupFinancialSummary>(
+    'financial',
+    'getGroupFinancialSummary',
+    {'parentPromiseId': parentPromiseId},
+  );
+
+  /// Returns PromiseFinancialTerms for an authorized promise.
+  _ida.Future<_ips6gtr9.PromiseFinancialTerms?> getFinancialTerms(
+    int promiseId,
+  ) => caller.callServerEndpoint<_ips6gtr9.PromiseFinancialTerms?>(
+    'financial',
+    'getFinancialTerms',
+    {'promiseId': promiseId},
+  );
+
+  /// Returns payment schedule installments for an authorized promise.
+  _ida.Future<List<_i6r5712y.PromisePaymentSchedule>> getPaymentSchedule(
+    int promiseId,
+  ) => caller.callServerEndpoint<List<_i6r5712y.PromisePaymentSchedule>>(
+    'financial',
+    'getPaymentSchedule',
+    {'promiseId': promiseId},
+  );
+
+  /// Returns payment and refund records for an authorized promise.
+  _ida.Future<List<_i1cdgxy2.PromisePaymentRecord>> getPaymentRecords(
+    int promiseId,
+  ) => caller.callServerEndpoint<List<_i1cdgxy2.PromisePaymentRecord>>(
+    'financial',
+    'getPaymentRecords',
+    {'promiseId': promiseId},
+  );
+
+  /// Sets or updates financial terms for a promise.
+  /// Throws [ArgumentError] if any payment record already exists (terms are read-only).
+  _ida.Future<_ips6gtr9.PromiseFinancialTerms> setFinancialTerms(
+    int promiseId,
+    int totalAmountMinorUnits,
+    String currency,
+    String payerUserId,
+    String payeeUserId,
+    String? notes,
+  ) => caller.callServerEndpoint<_ips6gtr9.PromiseFinancialTerms>(
+    'financial',
+    'setFinancialTerms',
+    {
+      'promiseId': promiseId,
+      'totalAmountMinorUnits': totalAmountMinorUnits,
+      'currency': currency,
+      'payerUserId': payerUserId,
+      'payeeUserId': payeeUserId,
+      'notes': notes,
+    },
+  );
+
+  /// Sets payment schedule installments for a promise.
+  _ida.Future<List<_i6r5712y.PromisePaymentSchedule>> setPaymentSchedule(
+    int promiseId,
+    List<_i6r5712y.PromisePaymentSchedule> installments,
+  ) => caller.callServerEndpoint<List<_i6r5712y.PromisePaymentSchedule>>(
+    'financial',
+    'setPaymentSchedule',
+    {
+      'promiseId': promiseId,
+      'installments': installments,
+    },
+  );
+
+  /// Cancels an unpaid schedule installment.
+  _ida.Future<_i6r5712y.PromisePaymentSchedule>
+  cancelPaymentScheduleInstallment(
+    int scheduleId,
+    String? cancellationReason,
+  ) => caller.callServerEndpoint<_i6r5712y.PromisePaymentSchedule>(
+    'financial',
+    'cancelPaymentScheduleInstallment',
+    {
+      'scheduleId': scheduleId,
+      'cancellationReason': cancellationReason,
+    },
+  );
+
+  /// Records an offline payment entry (`recordKind: 'payment'`).
+  _ida.Future<_i1cdgxy2.PromisePaymentRecord> recordPayment(
+    int promiseId,
+    int? scheduleId,
+    int amountMinorUnits,
+    DateTime paymentDate,
+    String paymentMethod,
+    String? externalReference,
+    String? notes,
+    int? attachmentId,
+  ) => caller.callServerEndpoint<_i1cdgxy2.PromisePaymentRecord>(
+    'financial',
+    'recordPayment',
+    {
+      'promiseId': promiseId,
+      'scheduleId': scheduleId,
+      'amountMinorUnits': amountMinorUnits,
+      'paymentDate': paymentDate,
+      'paymentMethod': paymentMethod,
+      'externalReference': externalReference,
+      'notes': notes,
+      'attachmentId': attachmentId,
+    },
+  );
+
+  /// Records an offline refund entry (`recordKind: 'refund'`) reversing an original confirmed payment.
+  _ida.Future<_i1cdgxy2.PromisePaymentRecord> recordRefund(
+    int promiseId,
+    int originalPaymentRecordId,
+    int amountMinorUnits,
+    DateTime refundDate,
+    String paymentMethod,
+    String? externalReference,
+    String? notes,
+    int? attachmentId,
+  ) => caller.callServerEndpoint<_i1cdgxy2.PromisePaymentRecord>(
+    'financial',
+    'recordRefund',
+    {
+      'promiseId': promiseId,
+      'originalPaymentRecordId': originalPaymentRecordId,
+      'amountMinorUnits': amountMinorUnits,
+      'refundDate': refundDate,
+      'paymentMethod': paymentMethod,
+      'externalReference': externalReference,
+      'notes': notes,
+      'attachmentId': attachmentId,
+    },
+  );
+
+  /// Unified confirmation RPC for pending payment or refund records (`status == 'pending_confirmation'`).
+  _ida.Future<_i1cdgxy2.PromisePaymentRecord> confirmPaymentRecord(
+    int paymentRecordId,
+  ) => caller.callServerEndpoint<_i1cdgxy2.PromisePaymentRecord>(
+    'financial',
+    'confirmPaymentRecord',
+    {'paymentRecordId': paymentRecordId},
+  );
+
+  /// Unified dispute RPC for pending payment or refund records (`status == 'pending_confirmation'`).
+  _ida.Future<_i1cdgxy2.PromisePaymentRecord> disputePaymentRecord(
+    int paymentRecordId,
+    String reason,
+  ) => caller.callServerEndpoint<_i1cdgxy2.PromisePaymentRecord>(
+    'financial',
+    'disputePaymentRecord',
+    {
+      'paymentRecordId': paymentRecordId,
+      'reason': reason,
+    },
+  );
+
+  /// Unified cancellation RPC for pending payment or refund records (`status == 'pending_confirmation'`).
+  _ida.Future<_i1cdgxy2.PromisePaymentRecord> cancelPaymentRecord(
+    int paymentRecordId,
+    String? cancellationReason,
+  ) => caller.callServerEndpoint<_i1cdgxy2.PromisePaymentRecord>(
+    'financial',
+    'cancelPaymentRecord',
+    {
+      'paymentRecordId': paymentRecordId,
+      'cancellationReason': cancellationReason,
+    },
+  );
+}
+
 /// {@category Endpoint}
 class EndpointPromise extends _isc.EndpointRef {
   EndpointPromise(_isc.EndpointCaller caller) : super(caller);
@@ -613,6 +815,7 @@ class Client extends _isc.ServerpodClientShared {
     greeting = EndpointGreeting(this);
     notification = EndpointNotification(this);
     attachment = EndpointAttachment(this);
+    financial = EndpointFinancial(this);
     promise = EndpointPromise(this);
     modules = Modules(this);
   }
@@ -629,6 +832,8 @@ class Client extends _isc.ServerpodClientShared {
 
   late final EndpointAttachment attachment;
 
+  late final EndpointFinancial financial;
+
   late final EndpointPromise promise;
 
   late final Modules modules;
@@ -641,6 +846,7 @@ class Client extends _isc.ServerpodClientShared {
     'greeting': greeting,
     'notification': notification,
     'attachment': attachment,
+    'financial': financial,
     'promise': promise,
   };
 

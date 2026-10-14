@@ -1,0 +1,6 @@
+class: GroupFinancialSummary
+fields:
+  parentPromiseId: int
+  hasFinancials: bool
+  currencySummaries: List<PromiseFinancialSummary>
+  hasActiveDispute: bool

@@ -1,0 +1,15 @@
+class: PromiseFinancialTerms
+table: promise_financial_terms
+fields:
+  promiseId: int, relation(parent=promise)
+  totalAmountMinorUnits: int
+  currency: String
+  payerUserId: String
+  payeeUserId: String
+  notes: String?
+  createdAt: DateTime
+  updatedAt: DateTime?
+indexes:
+  promise_financial_terms_promise_id_idx:
+    fields: promiseId
+    unique: true

@@ -6,6 +6,6 @@ environment:
 
 workspace:
   - promise_client
+  - promise_currency
   - promise_server
   - promise_flutter
-

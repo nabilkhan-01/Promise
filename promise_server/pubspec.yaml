@@ -10,6 +10,8 @@ resolution: workspace
 
 dependencies:
   http: ^1.6.0
+  promise_currency:
+    path: ../promise_currency
   serverpod: 4.0.3
   serverpod_auth_idp_server: 4.0.3
   serverpod_cloud_storage: 4.0.3
