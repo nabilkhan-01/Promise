@@ -22,6 +22,8 @@ import 'package:promise_client/src/protocol/notifications/app_notification.dart'
     as _iim66qok;
 import 'package:promise_client/src/protocol/promises/attachment_upload_description.dart'
     as _iusvgnae;
+import 'package:promise_client/src/protocol/promises/parent_project_metadata.dart'
+    as _ip0spzl9;
 import 'package:promise_client/src/protocol/promises/promise.dart' as _izrd4uei;
 import 'package:promise_client/src/protocol/promises/promise_activity.dart'
     as _irwpjxuh;
@@ -465,7 +467,7 @@ class EndpointPromise extends _isc.EndpointRef {
         {},
       );
 
-  /// Retrieves a single promise by ID after authorizing participant access.
+  /// Retrieves a single promise by ID after authorizing direct participant access.
   _ida.Future<_izrd4uei.Promise?> getPromise(int id) =>
       caller.callServerEndpoint<_izrd4uei.Promise?>(
         'promise',
@@ -473,7 +475,18 @@ class EndpointPromise extends _isc.EndpointRef {
         {'id': id},
       );
 
+  /// Retrieves read-only parent project metadata for a group promise.
+  /// Authorizes creator and assigned child recipients. Rejects unrelated users.
+  _ida.Future<_ip0spzl9.ParentProjectMetadata> getParentProjectMetadata(
+    int parentPromiseId,
+  ) => caller.callServerEndpoint<_ip0spzl9.ParentProjectMetadata>(
+    'promise',
+    'getParentProjectMetadata',
+    {'parentPromiseId': parentPromiseId},
+  );
+
   /// Retrieves children of a grouped promise.
+  /// Parents get all children. Child recipients get ONLY sub-tasks assigned to them (sibling isolation).
   _ida.Future<List<_izrd4uei.Promise>> getChildPromises(int parentPromiseId) =>
       caller.callServerEndpoint<List<_izrd4uei.Promise>>(
         'promise',
@@ -489,7 +502,7 @@ class EndpointPromise extends _isc.EndpointRef {
         {'promiseId': promiseId},
       );
 
-  /// Retrieves activities for a promise after authorizing participant access.
+  /// Retrieves activities for a promise after authorizing direct participant access.
   _ida.Future<List<_irwpjxuh.PromiseActivity>> getActivities(int promiseId) =>
       caller.callServerEndpoint<List<_irwpjxuh.PromiseActivity>>(
         'promise',
@@ -497,7 +510,7 @@ class EndpointPromise extends _isc.EndpointRef {
         {'promiseId': promiseId},
       );
 
-  /// Adds a new activity update for a promise. Does NOT alter overall promise status.
+  /// Adds a new activity update for a promise after authorizing direct participant access.
   _ida.Future<_irwpjxuh.PromiseActivity> addActivity(
     int promiseId,
     String type,

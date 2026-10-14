@@ -31,10 +31,13 @@ abstract class Promise
     this.parentPromiseId,
     bool? recipientAccepted,
     this.recipientAcceptedAt,
+    String? commitmentType,
+    this.milestoneOrder,
   }) : creatorConfirmed = creatorConfirmed ?? false,
        recipientConfirmed = recipientConfirmed ?? false,
        isGroupParent = isGroupParent ?? false,
-       recipientAccepted = recipientAccepted ?? true;
+       recipientAccepted = recipientAccepted ?? true,
+       commitmentType = commitmentType ?? 'personal';
 
   factory Promise({
     int? id,
@@ -53,6 +56,8 @@ abstract class Promise
     int? parentPromiseId,
     bool? recipientAccepted,
     DateTime? recipientAcceptedAt,
+    String? commitmentType,
+    int? milestoneOrder,
   }) = _PromiseImpl;
 
   factory Promise.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -95,6 +100,8 @@ abstract class Promise
           : _is.DateTimeJsonExtension.fromJson(
               jsonSerialization['recipientAcceptedAt'],
             ),
+      commitmentType: jsonSerialization['commitmentType'] as String?,
+      milestoneOrder: jsonSerialization['milestoneOrder'] as int?,
     );
   }
 
@@ -135,6 +142,10 @@ abstract class Promise
 
   DateTime? recipientAcceptedAt;
 
+  String? commitmentType;
+
+  int? milestoneOrder;
+
   @override
   _is.Table<int?> get table => t;
 
@@ -158,6 +169,8 @@ abstract class Promise
     int? parentPromiseId,
     bool? recipientAccepted,
     DateTime? recipientAcceptedAt,
+    String? commitmentType,
+    int? milestoneOrder,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -180,6 +193,8 @@ abstract class Promise
       'recipientAccepted': recipientAccepted,
       if (recipientAcceptedAt != null)
         'recipientAcceptedAt': recipientAcceptedAt?.toJson(),
+      if (commitmentType != null) 'commitmentType': commitmentType,
+      if (milestoneOrder != null) 'milestoneOrder': milestoneOrder,
     };
   }
 
@@ -204,6 +219,8 @@ abstract class Promise
       'recipientAccepted': recipientAccepted,
       if (recipientAcceptedAt != null)
         'recipientAcceptedAt': recipientAcceptedAt?.toJson(),
+      if (commitmentType != null) 'commitmentType': commitmentType,
+      if (milestoneOrder != null) 'milestoneOrder': milestoneOrder,
     };
   }
 
@@ -255,6 +272,8 @@ class _PromiseImpl extends Promise {
     int? parentPromiseId,
     bool? recipientAccepted,
     DateTime? recipientAcceptedAt,
+    String? commitmentType,
+    int? milestoneOrder,
   }) : super._(
          id: id,
          title: title,
@@ -272,6 +291,8 @@ class _PromiseImpl extends Promise {
          parentPromiseId: parentPromiseId,
          recipientAccepted: recipientAccepted,
          recipientAcceptedAt: recipientAcceptedAt,
+         commitmentType: commitmentType,
+         milestoneOrder: milestoneOrder,
        );
 
   /// Returns a shallow copy of this [Promise]
@@ -295,6 +316,8 @@ class _PromiseImpl extends Promise {
     Object? parentPromiseId = _Undefined,
     bool? recipientAccepted,
     Object? recipientAcceptedAt = _Undefined,
+    Object? commitmentType = _Undefined,
+    Object? milestoneOrder = _Undefined,
   }) {
     return Promise(
       id: id is int? ? id : this.id,
@@ -321,6 +344,12 @@ class _PromiseImpl extends Promise {
       recipientAcceptedAt: recipientAcceptedAt is DateTime?
           ? recipientAcceptedAt
           : this.recipientAcceptedAt,
+      commitmentType: commitmentType is String?
+          ? commitmentType
+          : this.commitmentType,
+      milestoneOrder: milestoneOrder is int?
+          ? milestoneOrder
+          : this.milestoneOrder,
     );
   }
 }
@@ -408,6 +437,17 @@ class PromiseUpdateTable extends _is.UpdateTable<PromiseTable> {
         table.recipientAcceptedAt,
         value,
       );
+
+  _is.ColumnValue<String, String> commitmentType(String? value) =>
+      _is.ColumnValue(
+        table.commitmentType,
+        value,
+      );
+
+  _is.ColumnValue<int, int> milestoneOrder(int? value) => _is.ColumnValue(
+    table.milestoneOrder,
+    value,
+  );
 }
 
 class PromiseTable extends _is.Table<int?> {
@@ -477,6 +517,15 @@ class PromiseTable extends _is.Table<int?> {
       'recipientAcceptedAt',
       this,
     );
+    commitmentType = _is.ColumnString(
+      'commitmentType',
+      this,
+      hasDefault: true,
+    );
+    milestoneOrder = _is.ColumnInt(
+      'milestoneOrder',
+      this,
+    );
   }
 
   late final PromiseUpdateTable updateTable;
@@ -511,6 +560,10 @@ class PromiseTable extends _is.Table<int?> {
 
   late final _is.ColumnDateTime recipientAcceptedAt;
 
+  late final _is.ColumnString commitmentType;
+
+  late final _is.ColumnInt milestoneOrder;
+
   @override
   List<_is.Column> get columns => [
     id,
@@ -529,6 +582,8 @@ class PromiseTable extends _is.Table<int?> {
     parentPromiseId,
     recipientAccepted,
     recipientAcceptedAt,
+    commitmentType,
+    milestoneOrder,
   ];
 }
 

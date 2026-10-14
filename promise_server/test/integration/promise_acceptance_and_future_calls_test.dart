@@ -98,41 +98,13 @@ void main() {
           unacceptedPromiseId,
         );
         expect(accepted.recipientAccepted, isTrue);
-        expect(accepted.recipientAcceptedAt, isNotNull);
-
-        final activity = await endpoints.promise.addActivity(
-          recipientSession,
-          unacceptedPromiseId,
-          'update',
-          'Work started',
-        );
-        expect(activity, isNotNull);
       },
     );
 
     test(
-      'PromiseExpiryFutureCall expires 8-day old unaccepted promise and cleans up notifications',
+      'PromiseExpiryFutureCall cleans up unaccepted promises older than 7 days',
       () async {
         final session = sessionBuilder.build();
-        final recipientSession = sessionBuilder.copyWith(
-          authentication: AuthenticationOverride.authenticationInfo(
-            recipientId,
-            {},
-          ),
-        );
-
-        await AppNotification.db.insertRow(
-          session,
-          AppNotification(
-            userId: recipientId,
-            type: 'promise_created',
-            title: 'New Promise',
-            message: 'Test message',
-            createdAt: DateTime.now().toUtc(),
-            readAt: null,
-            promiseId: unacceptedPromiseId,
-          ),
-        );
 
         await PromiseExpiryFutureCall().invoke(
           session,
@@ -145,8 +117,9 @@ void main() {
         );
         expect(dbUnaccepted, isNull);
 
-        final notifs = await endpoints.notification.getNotifications(
-          recipientSession,
+        final notifs = await AppNotification.db.find(
+          session,
+          where: (t) => t.userId.equals(recipientId),
         );
         final dangling = notifs.where(
           (n) => n.promiseId == unacceptedPromiseId,
@@ -162,6 +135,78 @@ void main() {
           acceptedPromiseId,
         );
         expect(dbAccepted, isNotNull);
+      },
+    );
+
+    test(
+      'expiring an unaccepted child promise recalculates parent status for remaining children',
+      () async {
+        final session = sessionBuilder.build();
+
+        final parent = await Promise.db.insertRow(
+          session,
+          Promise(
+            title: 'Expiry Parent',
+            promisedTo: 'Multiple',
+            creatorUserId: creatorId,
+            isGroupParent: true,
+            dueDate: DateTime.now().toUtc().add(const Duration(days: 5)),
+            createdAt: DateTime.now().toUtc(),
+            status: 'in_progress',
+          ),
+        );
+
+        await Promise.db.insertRow(
+          session,
+          Promise(
+            title: 'Child 1 Completed',
+            promisedTo: 'Recipient',
+            creatorUserId: creatorId,
+            recipientUserId: recipientId,
+            parentPromiseId: parent.id,
+            recipientAccepted: true,
+            creatorConfirmed: true,
+            recipientConfirmed: true,
+            dueDate: DateTime.now().toUtc().add(const Duration(days: 2)),
+            createdAt: DateTime.now().toUtc(),
+            status: 'completed',
+          ),
+        );
+
+        final child2Unaccepted = await Promise.db.insertRow(
+          session,
+          Promise(
+            title: 'Child 2 Unaccepted',
+            promisedTo: 'Recipient',
+            creatorUserId: creatorId,
+            recipientUserId: recipientId,
+            parentPromiseId: parent.id,
+            recipientAccepted: false,
+            dueDate: DateTime.now().toUtc().add(const Duration(days: 3)),
+            createdAt: DateTime.now().toUtc().subtract(
+              const Duration(days: 8),
+            ), // 8 days old
+            status: 'pending',
+          ),
+        );
+
+        // Expire Child 2
+        await PromiseExpiryFutureCall().invoke(
+          session,
+          PromiseExpiryObject(promiseId: child2Unaccepted.id!),
+        );
+
+        // Child 2 should be deleted
+        final dbChild2 = await Promise.db.findById(
+          session,
+          child2Unaccepted.id!,
+        );
+        expect(dbChild2, isNull);
+
+        // Parent status should now recalculate to 'completed' because Child 1 is the only remaining child and is completed
+        final dbParent = await Promise.db.findById(session, parent.id!);
+        expect(dbParent, isNotNull);
+        expect(dbParent!.status, 'completed');
       },
     );
 

@@ -31,10 +31,13 @@ abstract class Promise
     this.parentPromiseId,
     bool? recipientAccepted,
     this.recipientAcceptedAt,
+    String? commitmentType,
+    this.milestoneOrder,
   }) : creatorConfirmed = creatorConfirmed ?? false,
        recipientConfirmed = recipientConfirmed ?? false,
        isGroupParent = isGroupParent ?? false,
-       recipientAccepted = recipientAccepted ?? true;
+       recipientAccepted = recipientAccepted ?? true,
+       commitmentType = commitmentType ?? 'personal';
 
   factory Promise({
     int? id,
@@ -53,6 +56,8 @@ abstract class Promise
     int? parentPromiseId,
     bool? recipientAccepted,
     DateTime? recipientAcceptedAt,
+    String? commitmentType,
+    int? milestoneOrder,
   }) = _PromiseImpl;
 
   factory Promise.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -97,6 +102,8 @@ abstract class Promise
           : _isc.DateTimeJsonExtension.fromJson(
               jsonSerialization['recipientAcceptedAt'],
             ),
+      commitmentType: jsonSerialization['commitmentType'] as String?,
+      milestoneOrder: jsonSerialization['milestoneOrder'] as int?,
     );
   }
 
@@ -135,6 +142,10 @@ abstract class Promise
 
   DateTime? recipientAcceptedAt;
 
+  String? commitmentType;
+
+  int? milestoneOrder;
+
   /// Returns a shallow copy of this [Promise]
   /// with some or all fields replaced by the given arguments.
   @_isc.useResult
@@ -155,6 +166,8 @@ abstract class Promise
     int? parentPromiseId,
     bool? recipientAccepted,
     DateTime? recipientAcceptedAt,
+    String? commitmentType,
+    int? milestoneOrder,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -177,6 +190,8 @@ abstract class Promise
       'recipientAccepted': recipientAccepted,
       if (recipientAcceptedAt != null)
         'recipientAcceptedAt': recipientAcceptedAt?.toJson(),
+      if (commitmentType != null) 'commitmentType': commitmentType,
+      if (milestoneOrder != null) 'milestoneOrder': milestoneOrder,
     };
   }
 
@@ -201,6 +216,8 @@ abstract class Promise
       'recipientAccepted': recipientAccepted,
       if (recipientAcceptedAt != null)
         'recipientAcceptedAt': recipientAcceptedAt?.toJson(),
+      if (commitmentType != null) 'commitmentType': commitmentType,
+      if (milestoneOrder != null) 'milestoneOrder': milestoneOrder,
     };
   }
 
@@ -230,6 +247,8 @@ class _PromiseImpl extends Promise {
     int? parentPromiseId,
     bool? recipientAccepted,
     DateTime? recipientAcceptedAt,
+    String? commitmentType,
+    int? milestoneOrder,
   }) : super._(
          id: id,
          title: title,
@@ -247,6 +266,8 @@ class _PromiseImpl extends Promise {
          parentPromiseId: parentPromiseId,
          recipientAccepted: recipientAccepted,
          recipientAcceptedAt: recipientAcceptedAt,
+         commitmentType: commitmentType,
+         milestoneOrder: milestoneOrder,
        );
 
   /// Returns a shallow copy of this [Promise]
@@ -270,6 +291,8 @@ class _PromiseImpl extends Promise {
     Object? parentPromiseId = _Undefined,
     bool? recipientAccepted,
     Object? recipientAcceptedAt = _Undefined,
+    Object? commitmentType = _Undefined,
+    Object? milestoneOrder = _Undefined,
   }) {
     return Promise(
       id: id is int? ? id : this.id,
@@ -296,6 +319,12 @@ class _PromiseImpl extends Promise {
       recipientAcceptedAt: recipientAcceptedAt is DateTime?
           ? recipientAcceptedAt
           : this.recipientAcceptedAt,
+      commitmentType: commitmentType is String?
+          ? commitmentType
+          : this.commitmentType,
+      milestoneOrder: milestoneOrder is int?
+          ? milestoneOrder
+          : this.milestoneOrder,
     );
   }
 }

@@ -98,6 +98,24 @@ class FriendEndpoint extends Endpoint {
     return results;
   }
 
+  String _friendshipLockKey(String user1, String user2) {
+    return user1.compareTo(user2) < 0 ? '$user1:$user2' : '$user2:$user1';
+  }
+
+  Future<void> _acquireFriendshipLock(
+    Session session,
+    Transaction tx,
+    String user1,
+    String user2,
+  ) async {
+    final lockKey = _friendshipLockKey(user1, user2);
+    await session.db.unsafeQuery(
+      'SELECT pg_advisory_xact_lock(hashtext(\$1))',
+      parameters: QueryParameters.positional([lockKey]),
+      transaction: tx,
+    );
+  }
+
   /// Sends a friend request to a target user ID.
   Future<Friendship> sendFriendRequest(
     Session session,
@@ -126,42 +144,60 @@ class FriendEndpoint extends Endpoint {
         ? senderProfile!.userName!
         : (senderProfile?.email ?? 'Someone');
 
-    final existing = await Friendship.db.findFirstRow(
-      session,
-      where: (t) =>
-          (t.senderUserId.equals(senderUserId) &
-              t.receiverUserId.equals(cleanReceiverId)) |
-          (t.senderUserId.equals(cleanReceiverId) &
-              t.receiverUserId.equals(senderUserId)),
-    );
+    return await session.db.transaction((tx) async {
+      await _acquireFriendshipLock(session, tx, senderUserId, cleanReceiverId);
 
-    Friendship saved;
-    if (existing != null) {
-      if (existing.status == 'accepted') {
-        throw ArgumentError('You are already friends with this user.');
-      }
-      if (existing.status == 'pending') {
-        throw ArgumentError('A pending friend request already exists.');
-      }
-      // Re-send rejected request
-      final updated = existing.copyWith(
-        senderUserId: senderUserId,
-        receiverUserId: cleanReceiverId,
-        status: 'pending',
-        updatedAt: DateTime.now().toUtc(),
+      final existing = await Friendship.db.findFirstRow(
+        session,
+        where: (t) =>
+            (t.senderUserId.equals(senderUserId) &
+                t.receiverUserId.equals(cleanReceiverId)) |
+            (t.senderUserId.equals(cleanReceiverId) &
+                t.receiverUserId.equals(senderUserId)),
+        transaction: tx,
+        lockMode: LockMode.forUpdate,
       );
-      saved = await Friendship.db.updateRow(session, updated);
-    } else {
-      final newFriendship = Friendship(
-        senderUserId: senderUserId,
-        receiverUserId: cleanReceiverId,
-        status: 'pending',
-        createdAt: DateTime.now().toUtc(),
-      );
-      saved = await Friendship.db.insertRow(session, newFriendship);
-    }
 
-    try {
+      Friendship saved;
+      if (existing != null) {
+        if (existing.status == 'accepted') {
+          throw ArgumentError('You are already friends with this user.');
+        }
+        if (existing.status == 'pending') {
+          if (existing.senderUserId == senderUserId) {
+            throw ArgumentError('A pending friend request already exists.');
+          } else {
+            throw ArgumentError(
+              'A pending friend request from this user already exists.',
+            );
+          }
+        }
+        // Re-send rejected request
+        final updated = existing.copyWith(
+          senderUserId: senderUserId,
+          receiverUserId: cleanReceiverId,
+          status: 'pending',
+          updatedAt: DateTime.now().toUtc(),
+        );
+        saved = await Friendship.db.updateRow(
+          session,
+          updated,
+          transaction: tx,
+        );
+      } else {
+        final newFriendship = Friendship(
+          senderUserId: senderUserId,
+          receiverUserId: cleanReceiverId,
+          status: 'pending',
+          createdAt: DateTime.now().toUtc(),
+        );
+        saved = await Friendship.db.insertRow(
+          session,
+          newFriendship,
+          transaction: tx,
+        );
+      }
+
       await NotificationHelper.createNotification(
         session,
         userId: cleanReceiverId,
@@ -169,10 +205,11 @@ class FriendEndpoint extends Endpoint {
         title: 'New Friend Request',
         message: '$senderName sent you a friend request.',
         friendshipId: saved.id,
+        transaction: tx,
       );
-    } catch (_) {}
 
-    return saved;
+      return saved;
+    });
   }
 
   /// Retrieves pending friend requests sent TO the current authenticated user.
@@ -219,32 +256,52 @@ class FriendEndpoint extends Endpoint {
   ) async {
     final currentUserId = _getAuthUserId(session);
 
-    final friendship = await Friendship.db.findById(session, friendshipId);
-    if (friendship == null) {
-      throw ArgumentError('Friend request not found.');
-    }
-
-    if (friendship.receiverUserId != currentUserId) {
-      throw ArgumentError(
-        'You are not authorized to accept this friend request.',
-      );
-    }
-
-    final updated = friendship.copyWith(
-      status: 'accepted',
-      updatedAt: DateTime.now().toUtc(),
+    final receiverProfile = await _getProfileByAuthUserId(
+      session,
+      currentUserId,
     );
+    final receiverName = receiverProfile?.userName?.trim().isNotEmpty == true
+        ? receiverProfile!.userName!
+        : (receiverProfile?.email ?? 'Someone');
 
-    final saved = await Friendship.db.updateRow(session, updated);
-
-    try {
-      final receiverProfile = await _getProfileByAuthUserId(
+    return await session.db.transaction((tx) async {
+      final friendship = await Friendship.db.findById(
         session,
-        currentUserId,
+        friendshipId,
+        transaction: tx,
+        lockMode: LockMode.forUpdate,
       );
-      final receiverName = receiverProfile?.userName?.trim().isNotEmpty == true
-          ? receiverProfile!.userName!
-          : (receiverProfile?.email ?? 'Someone');
+      if (friendship == null) {
+        throw ArgumentError('Friend request not found.');
+      }
+
+      if (friendship.receiverUserId != currentUserId) {
+        throw ArgumentError(
+          'You are not authorized to accept this friend request.',
+        );
+      }
+
+      // Idempotent: If already accepted, return existing friendship without re-notifying
+      if (friendship.status == 'accepted') {
+        return friendship;
+      }
+
+      if (friendship.status != 'pending') {
+        throw ArgumentError(
+          'This friend request is no longer pending (status: ${friendship.status}).',
+        );
+      }
+
+      final updated = friendship.copyWith(
+        status: 'accepted',
+        updatedAt: DateTime.now().toUtc(),
+      );
+
+      final saved = await Friendship.db.updateRow(
+        session,
+        updated,
+        transaction: tx,
+      );
 
       await NotificationHelper.createNotification(
         session,
@@ -253,10 +310,11 @@ class FriendEndpoint extends Endpoint {
         title: 'Friend Request Accepted',
         message: '$receiverName accepted your friend request.',
         friendshipId: friendship.id,
+        transaction: tx,
       );
-    } catch (_) {}
 
-    return saved;
+      return saved;
+    });
   }
 
   /// Rejects an incoming friend request.
@@ -266,23 +324,45 @@ class FriendEndpoint extends Endpoint {
   ) async {
     final currentUserId = _getAuthUserId(session);
 
-    final friendship = await Friendship.db.findById(session, friendshipId);
-    if (friendship == null) {
-      throw ArgumentError('Friend request not found.');
-    }
-
-    if (friendship.receiverUserId != currentUserId) {
-      throw ArgumentError(
-        'You are not authorized to reject this friend request.',
+    return await session.db.transaction((tx) async {
+      final friendship = await Friendship.db.findById(
+        session,
+        friendshipId,
+        transaction: tx,
+        lockMode: LockMode.forUpdate,
       );
-    }
+      if (friendship == null) {
+        throw ArgumentError('Friend request not found.');
+      }
 
-    final updated = friendship.copyWith(
-      status: 'rejected',
-      updatedAt: DateTime.now().toUtc(),
-    );
+      if (friendship.receiverUserId != currentUserId) {
+        throw ArgumentError(
+          'You are not authorized to reject this friend request.',
+        );
+      }
 
-    return await Friendship.db.updateRow(session, updated);
+      // Idempotent: If already rejected, return existing friendship
+      if (friendship.status == 'rejected') {
+        return friendship;
+      }
+
+      if (friendship.status != 'pending') {
+        throw ArgumentError(
+          'This friend request is no longer pending (status: ${friendship.status}).',
+        );
+      }
+
+      final updated = friendship.copyWith(
+        status: 'rejected',
+        updatedAt: DateTime.now().toUtc(),
+      );
+
+      return await Friendship.db.updateRow(
+        session,
+        updated,
+        transaction: tx,
+      );
+    });
   }
 
   /// Retrieves list of accepted friends for current authenticated user.
@@ -333,18 +413,28 @@ class FriendEndpoint extends Endpoint {
     final currentUserId = _getAuthUserId(session);
     final cleanFriendId = friendUserId.trim();
 
-    final friendship = await Friendship.db.findFirstRow(
-      session,
-      where: (t) =>
-          ((t.senderUserId.equals(currentUserId) &
-                  t.receiverUserId.equals(cleanFriendId)) |
-              (t.senderUserId.equals(cleanFriendId) &
-                  t.receiverUserId.equals(currentUserId))) &
-          t.status.equals('accepted'),
-    );
+    await session.db.transaction((tx) async {
+      await _acquireFriendshipLock(session, tx, currentUserId, cleanFriendId);
 
-    if (friendship != null) {
-      await Friendship.db.deleteRow(session, friendship);
-    }
+      final friendship = await Friendship.db.findFirstRow(
+        session,
+        where: (t) =>
+            ((t.senderUserId.equals(currentUserId) &
+                    t.receiverUserId.equals(cleanFriendId)) |
+                (t.senderUserId.equals(cleanFriendId) &
+                    t.receiverUserId.equals(currentUserId))) &
+            t.status.equals('accepted'),
+        transaction: tx,
+        lockMode: LockMode.forUpdate,
+      );
+
+      if (friendship != null) {
+        await Friendship.db.deleteRow(
+          session,
+          friendship,
+          transaction: tx,
+        );
+      }
+    });
   }
 }

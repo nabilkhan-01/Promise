@@ -1,6 +1,7 @@
 import 'package:serverpod/serverpod.dart';
 import '../generated/protocol.dart';
 import '../notifications/notification_helper.dart';
+import 'promise_lifecycle_helper.dart';
 
 class PromiseExpiryFutureCall extends FutureCall<PromiseExpiryObject> {
   Future<void> invoke(Session session, PromiseExpiryObject? object) async {
@@ -91,6 +92,12 @@ class PromiseExpiryFutureCall extends FutureCall<PromiseExpiryObject> {
             );
             await Promise.db.deleteRow(session, parent, transaction: tx);
           }
+        } else {
+          await PromiseLifecycleHelper.updateParentStatusIfNeeded(
+            session,
+            parentId,
+            tx,
+          );
         }
       }
     });

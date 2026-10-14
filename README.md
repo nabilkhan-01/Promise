@@ -1,4 +1,4 @@
-# Promise (v0.3.1)
+# Promise (v0.4.0)
 
 Promise helps people turn everyday agreements into clear, trackable, and documented commitments.
 
@@ -20,7 +20,8 @@ Promise solves this problem by turning everyday agreements into structured commi
 - **Two-Party Confirmation:** Completion is only recognized when both Creator and Recipient confirm.
 - **Documented Change Requests:** A formal mechanism to request and record changes if circumstances evolve.
 - **Private Attachments & Receipts:** Attach evidence or receipts for cross-party approval.
-- **Nested Group Promises:** Create parent commitments containing sub-tasks assigned to different friends.
+- **Nested Group Promises & Project Milestones:** Create parent container commitments with sub-tasks assigned to different friends or multiple milestones for a single contractor.
+- **Unified Commitment Types:** Seamlessly organize personal commitments, freelance client agreements, and team coordination.
 - **Terminal Finality:** Completed commitments are archived as immutable, read-only records.
 
 ---
@@ -48,19 +49,23 @@ Promise solves this problem by turning everyday agreements into structured commi
 - **Friend Requests:** Send, view pending, accept, and reject friend requests.
 - **Friend Removal:** Remove existing friendships when necessary.
 - **Friendship-Enforced Commitments:** Promises can only be created for accepted friends.
-- **Backend Authorization:** Friendship relationships and privacy rules are enforced on the server.
+- **Backend Authorization & Concurrency Safety:** Friendship relationships and privacy rules are enforced on the server within isolated database transactions protected by canonical PostgreSQL advisory locking (`pg_advisory_xact_lock`) and `FOR UPDATE` row locks, preventing duplicate or conflicting relationship records under concurrent requests.
 
-### Promise Management & Recipient Acceptance
+### Promise Management, Commitment Types & Milestones
+- **Unified Commitment Classification:** Explicit `commitmentType` support for `Personal` (1-on-1 favors/tasks), `Freelance` (client/contractor agreements), and `Team` (multi-member group projects) with interactive filter chips on the main Dashboard.
+- **Deterministic Legacy Fallback Policy:** Legacy 1-on-1 commitments evaluate to `Personal`, legacy group parent containers evaluate to `Team`, and child sub-tasks inherit their parent project's commitment type.
+- **Project Milestone Sequence Ordering:** Optional `milestoneOrder` sequence numbering ($1, 2, 3...$) for child sub-tasks under group parent promises, sorted deterministically with fallback to deadline order.
+- **Repeated Milestones per Contractor:** Group creation permits assigning multiple milestones/sub-tasks to the same accepted recipient friend in a single contract while preserving friend authorization.
+- **Read-Only Parent Metadata Endpoint:** Security-hardened `getParentProjectMetadata` RPC endpoint allowing assigned freelancers/child recipients to view parent project title, description, and commitment type without exposing full parent DB entities, activities, or attachments.
+- **Strict Participant Authorization & Sibling Isolation:** Enforces strict caller checks (`_isDirectParticipant`) so child recipients can only access their assigned sub-tasks. Sibling sub-tasks, descriptions, activities, and attachments remain strictly isolated.
 - **Recipient Acceptance Workflow:** Newly created promises start in an unaccepted state (`recipientAccepted: false`). The assigned recipient must explicitly accept the invitation before work operations (progress updates, completion confirmations, change requests, evidence uploads) can proceed.
-- **7-Day Invitation Expiry:** Unaccepted promise invitations automatically expire after 7 days via Serverpod FutureCalls (`PromiseExpiryFutureCall`). Expired invitations, activities, cloud storage objects, and recipient notifications are safely cleaned up.
-- **Create Promise:** Log new commitments specifying title, recipient friend, optional description, timezone-safe due date, and optional due time.
-- **Nested Group Promises:** Create parent container commitments with up to 10 sub-tasks assigned to different accepted friends in a single atomic database transaction.
+- **7-Day Invitation Expiry & Status Recalculation:** Unaccepted promise invitations automatically expire after 7 days via Serverpod FutureCalls (`PromiseExpiryFutureCall`). When a child promise expires, remaining children automatically recalculate the parent's overall status (`PromiseLifecycleHelper.updateParentStatusIfNeeded`) inside the cleanup transaction.
+- **Create Promise:** Log new commitments specifying title, commitment type, recipient friend, optional description, timezone-safe due date, and optional due time.
 - **Derived Parent Progress:** Parent status is automatically derived from its children (`pending` -> `in_progress` -> `completed` when all children are finished). Direct manual status overrides or completion on parents are strictly blocked.
 - **Timezone-Safe Deadlines:** Date-only deadlines are saved as UTC midnight (`DateTime.utc`) to prevent calendar date shifts across global timezones. Legacy records maintain backward-compatible local time rendering.
-- **Tabbed Dashboard:** Clean Material 3 dashboard organized into two sections:
+- **Tabbed & Filtered Dashboard:** Clean Material 3 dashboard with `All`, `Personal`, `Freelance`, and `Team` filter chips organized into two status sections:
   - **Current (`pending`, `in_progress`, `awaiting_confirmation`):** Sorted strictly by nearest due date and due time first, with visual indicators (`Overdue by X days`, `Due today`, `Due tomorrow`, `Due Oct 14`, `Awaiting acceptance`).
   - **Completed (`completed`):** Archived commitments sorted newest first.
-- **Participant Authorization:** Serverpod backend verifies caller identity against creator and recipient IDs for all operations.
 
 ### Receipts & Private File Attachments
 - **Serverpod Private Storage:** Attach documents (PDFs) or images (PNG, JPEG) up to 10 MB per file.
@@ -102,7 +107,7 @@ Promise solves this problem by turning everyday agreements into structured commi
 ## Tech Stack
 
 ### Frontend
-- **Framework:** Flutter `0.3.1+4` (Android-first cross-platform UI)
+- **Framework:** Flutter `0.4.0+6` (Android-first cross-platform UI)
 - **Language:** Dart
 - **Design System:** Material 3
 
@@ -212,15 +217,17 @@ flutter test
 - [x] Email IDP endpoint integration tests (`email_idp_endpoint_test.dart`).
 - [x] Email registration duplicate detection & `checkEmailRegistration` integration tests (`email_idp_registration_test.dart`).
 - [x] Attachment endpoint security & upload integration tests (`attachment_endpoint_test.dart`).
-- [x] Group promise atomic creation & derived lifecycle integration tests (`group_promise_test.dart`).
-- [x] Promise acceptance, 7-day expiry, and deduplicated deadline reminder integration tests (`promise_acceptance_and_future_calls_test.dart`).
-- [x] All server integration tests passing (**41 / 41** tests).
+- [x] Group promise atomic creation, repeated recipients, milestone sorting, and derived lifecycle integration tests (`group_promise_test.dart`).
+- [x] Promise acceptance, 7-day expiry, parent recalculation, and deduplicated deadline reminder integration tests (`promise_acceptance_and_future_calls_test.dart`).
+- [x] Friend endpoint concurrency, transactional boundaries with advisory locks, and lifecycle integration tests (`friend_endpoint_test.dart`).
+- [x] All server integration tests passing (**55 / 55** tests).
 
 ### Automated Flutter Tests (`flutter test`)
 - [x] Timezone-safe deadline rendering and sorting tests (`deadline_utils_test.dart`).
 - [x] `IndicatorIconButton` widget unit tests (`indicator_icon_button_test.dart`).
 - [x] Auth controller & duplicate signup error flow tests (`sign_in_screen_test.dart`).
-- [x] All Flutter tests passing (**21 / 21** tests).
+- [x] Effective commitment type policy unit tests (`widget_test.dart`).
+- [x] All Flutter tests passing (**25 / 25** tests).
 
 ### Static Analysis
 - [x] `promise_server`: Clean (**0 issues**).
@@ -231,9 +238,9 @@ flutter test
 
 ## Security & Known Limitations
 
-- **Security & Authorization:** Strict participant-level authorization on all promises, activities, attachments, and notifications. Sibling isolation is enforced on Group Promises so recipients can only access their assigned sub-tasks.
+- **Security & Authorization:** Strict participant-level authorization on all promises, activities, attachments, and notifications. Sibling isolation is enforced on Group Promises so recipients can only access their assigned sub-tasks. Read-only parent metadata access (`getParentProjectMetadata`) restricts payload fields.
 - **7-Day Expiry & Reminders:** Background execution uses Serverpod FutureCalls verified via automated integration tests (`promise_acceptance_and_future_calls_test.dart`). Full production verification depends on Serverpod Cloud execution.
-- **Physical Device & Cloud Storage:** Upload verification and launcher icon rendering have been tested on local embedded storage; physical Android device testing against live cloud storage will be performed manually.
+- **Physical Device & Cloud Storage:** Upload verification and launcher icon rendering have been tested on local embedded storage; physical Android device testing against live cloud storage will be performed manually prior to production deployment.
 - **30-Day Attachment Pruning:** Automatic background cleanup of 30-day unreviewed attachments or orphaned files remains deferred (for post-hackathon) to avoid untested database cron jobs.
 - **Malware Scanning:** File uploads validate 10 MB limits and MIME types (`pdf`, `png`, `jpeg`), but do not perform deep byte-level antivirus scanning.
 
@@ -241,6 +248,6 @@ flutter test
 
 ## Status
 
-Promise v0.3.1 is a full-stack Serverpod 4.0.3 + Flutter application. All features — launcher branding, recipient acceptance, 7-day invitation expiry, deduplicated deadline reminders, duplicate-account detection, Brevo email authentication, friends, time-safe promises, grouped multi-recipient promises, private receipt attachments, `IndicatorIconButton` animated UI feedback, in-app notifications, and PostgreSQL persistence — are implemented, verified, and passing all automated test suites.
+Promise v0.4.0 is a full-stack Serverpod 4.0.3 + Flutter application. All features — launcher branding, recipient acceptance, 7-day invitation expiry, deduplicated deadline reminders, duplicate-account detection, Brevo email authentication, transactional friends system with advisory lock concurrency protection, time-safe promises, commitment types (Personal, Freelance, Team), project milestone sequence ordering, read-only parent project metadata authorization, private receipt attachments, `IndicatorIconButton` animated UI feedback, in-app notifications, and PostgreSQL persistence — are implemented, verified, and passing all automated test suites.
 
 **Repository:** [https://github.com/nabilkhan-01/Promise](https://github.com/nabilkhan-01/Promise)

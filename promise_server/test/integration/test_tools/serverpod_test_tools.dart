@@ -26,6 +26,8 @@ import 'package:promise_server/src/generated/promises/attachment_upload_descript
     as _i962fubg;
 import 'package:promise_server/src/generated/promises/deadline_reminder_object.dart'
     as _i7ah1uio;
+import 'package:promise_server/src/generated/promises/parent_project_metadata.dart'
+    as _isbkh1x8;
 import 'package:promise_server/src/generated/promises/promise.dart'
     as _ipgb4ryh;
 import 'package:promise_server/src/generated/promises/promise_activity.dart'
@@ -1300,6 +1302,39 @@ class _PromiseEndpoint {
                   _localCallContext.arguments,
                 )
                 as _ida.Future<_ipgb4ryh.Promise?>);
+        return _localReturnValue;
+      } finally {
+        await _localUniqueSession.close();
+      }
+    });
+  }
+
+  _ida.Future<_isbkh1x8.ParentProjectMetadata> getParentProjectMetadata(
+    _ist.TestSessionBuilder sessionBuilder,
+    int parentPromiseId,
+  ) async {
+    return _ist.callAwaitableFunctionAndHandleExceptions(() async {
+      var _localUniqueSession =
+          (sessionBuilder as _ist.InternalTestSessionBuilder).internalBuild(
+            endpoint: 'promise',
+            method: 'getParentProjectMetadata',
+          );
+      try {
+        var _localCallContext = await _endpointDispatch.getMethodCallContext(
+          createSessionCallback: (_) => _localUniqueSession,
+          endpointPath: 'promise',
+          methodName: 'getParentProjectMetadata',
+          parameters: _ist.testObjectToJson({
+            'parentPromiseId': parentPromiseId,
+          }),
+          serializationManager: _serializationManager,
+        );
+        var _localReturnValue =
+            await (_localCallContext.method.call(
+                  _localUniqueSession,
+                  _localCallContext.arguments,
+                )
+                as _ida.Future<_isbkh1x8.ParentProjectMetadata>);
         return _localReturnValue;
       } finally {
         await _localUniqueSession.close();

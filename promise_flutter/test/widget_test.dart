@@ -1,15 +1,82 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility that Flutter provides. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-// import 'package:flutter/material.dart';
-// import 'package:flutter_test/flutter_test.dart';
-//
-// import 'package:PROJECTNAME_flutter/main.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:promise_client/promise_client.dart';
+import 'package:promise_flutter/main.dart';
 
 void main() {
-  // Add your app tests here
+  group('Effective Commitment Type Policy Tests', () {
+    final now = DateTime.now().toUtc();
+
+    test('standalone 1-on-1 promise with stored personal remains personal', () {
+      final p = Promise(
+        title: 'Personal Favor',
+        promisedTo: 'Friend',
+        dueDate: now,
+        createdAt: now,
+        status: 'pending',
+        isGroupParent: false,
+        parentPromiseId: null,
+        commitmentType: 'personal',
+      );
+      expect(DashboardScreen.effectiveCommitmentType(p), 'personal');
+    });
+
+    test(
+      'standalone 1-on-1 promise with explicit freelance remains freelance',
+      () {
+        final p = Promise(
+          title: 'Freelance Task',
+          promisedTo: 'Client',
+          dueDate: now,
+          createdAt: now,
+          status: 'pending',
+          isGroupParent: false,
+          parentPromiseId: null,
+          commitmentType: 'freelance',
+        );
+        expect(DashboardScreen.effectiveCommitmentType(p), 'freelance');
+      },
+    );
+
+    test('legacy group parent with stored personal resolves to team', () {
+      final p = Promise(
+        title: 'Legacy Group Parent',
+        promisedTo: 'Multiple',
+        dueDate: now,
+        createdAt: now,
+        status: 'pending',
+        isGroupParent: true,
+        parentPromiseId: null,
+        commitmentType: 'personal', // Post-migration SQL column default
+      );
+      expect(DashboardScreen.effectiveCommitmentType(p), 'team');
+    });
+
+    test(
+      'legacy child milestone with stored personal resolves to team or parent type',
+      () {
+        final child = Promise(
+          title: 'Legacy Child Milestone',
+          promisedTo: 'Friend',
+          dueDate: now,
+          createdAt: now,
+          status: 'pending',
+          isGroupParent: false,
+          parentPromiseId: 100,
+          commitmentType: 'personal', // Post-migration SQL column default
+        );
+
+        // Default fallback without parent context
+        expect(DashboardScreen.effectiveCommitmentType(child), 'team');
+
+        // With freelance parent project context
+        expect(
+          DashboardScreen.effectiveCommitmentType(
+            child,
+            parentType: 'freelance',
+          ),
+          'freelance',
+        );
+      },
+    );
+  });
 }

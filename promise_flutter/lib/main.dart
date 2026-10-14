@@ -1,8 +1,9 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:promise_client/promise_client.dart';
 import 'package:serverpod_auth_idp_flutter/serverpod_auth_idp_flutter.dart';
+
 import 'client.dart';
 import 'screens/create_promise_screen.dart';
 import 'screens/friends_screen.dart';
@@ -11,9 +12,9 @@ import 'screens/promise_preparation_screen.dart';
 import 'screens/sign_in_screen.dart';
 import 'utils/deadline_utils.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  debugPrint('MAIN: App starting, calling runApp()...');
+  await setupClient();
   runApp(const PromiseApp());
 }
 
@@ -22,217 +23,146 @@ class PromiseApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const primaryColor = Color(0xFF6750A4);
+
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: primaryColor,
+      brightness: Brightness.light,
+    );
+
     return MaterialApp(
       title: 'Promise',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.indigo,
-          brightness: Brightness.light,
-        ),
         useMaterial3: true,
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.indigo,
-          brightness: Brightness.dark,
+        colorScheme: colorScheme,
+        textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme),
+        scaffoldBackgroundColor: colorScheme.surface,
+        appBarTheme: AppBarTheme(
+          backgroundColor: colorScheme.surface,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
         ),
-        useMaterial3: true,
       ),
-      themeMode: ThemeMode.system,
-      home: const StartupGate(),
+      home: const AuthGate(),
     );
   }
 }
 
-enum StartupState {
-  loading,
-  authenticated,
-  unauthenticated,
-  error,
-}
-
-class StartupGate extends StatefulWidget {
-  const StartupGate({super.key});
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key});
 
   @override
-  State<StartupGate> createState() => _StartupGateState();
+  State<AuthGate> createState() => _AuthGateState();
 }
 
-class _StartupGateState extends State<StartupGate> {
-  StartupState _state = StartupState.loading;
-  String? _errorMessage;
-  bool _isInitializing = false;
+enum _AuthState { loading, authenticated, unauthenticated }
+
+class _AuthGateState extends State<AuthGate> {
+  _AuthState _state = _AuthState.loading;
 
   @override
   void initState() {
     super.initState();
-    _initApp();
+    _initAuth();
   }
 
-  Future<void> _initApp() async {
-    if (_isInitializing) return;
-    _isInitializing = true;
-
-    debugPrint('APP: Rendering startup gate...');
-    setState(() {
-      _state = StartupState.loading;
-      _errorMessage = null;
-    });
-
+  Future<void> _initAuth() async {
     try {
-      debugPrint('CLIENT: Setting up Serverpod client...');
       await setupClient();
-
-      debugPrint('AUTH: Initialize starting...');
       await client.auth.initialize().timeout(const Duration(seconds: 10));
-
-      debugPrint('AUTH: Initialize completed.');
-      debugPrint('AUTH: authenticated = ${client.auth.isAuthenticated}');
-
       if (!mounted) return;
-
       setState(() {
         _state = client.auth.isAuthenticated
-            ? StartupState.authenticated
-            : StartupState.unauthenticated;
+            ? _AuthState.authenticated
+            : _AuthState.unauthenticated;
       });
-    } catch (e, stack) {
-      debugPrint('AUTH INIT EXCEPTION: $e');
-      debugPrint(stack.toString());
-
+    } catch (_) {
       if (!mounted) return;
-
       setState(() {
-        _state = StartupState.error;
-        _errorMessage = e is TimeoutException
-            ? 'Server connection timed out. Please verify that the Promise server is running.'
-            : 'Unable to connect to Promise server. Please check your connection and try again.';
+        _state = _AuthState.unauthenticated;
       });
-    } finally {
-      _isInitializing = false;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    switch (_state) {
-      case StartupState.loading:
-        return Scaffold(
-          body: SafeArea(
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.handshake_outlined,
-                      size: 72,
-                      color: theme.colorScheme.primary,
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Promise',
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Keep commitments clear, trackable, and documented.',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 36),
-                    const CircularProgressIndicator(),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Connecting to server...',
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-              ),
-            ),
+    if (_state == _AuthState.loading) {
+      return const Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Connecting to Promise...'),
+            ],
           ),
-        );
-
-      case StartupState.error:
-        return Scaffold(
-          body: SafeArea(
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.cloud_off_outlined,
-                      size: 64,
-                      color: theme.colorScheme.error,
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Unable to Connect',
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      _errorMessage ??
-                          'Unable to connect to Promise server. Make sure the server is running.',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 28),
-                    FilledButton.icon(
-                      onPressed: _initApp,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-
-      case StartupState.authenticated:
-      case StartupState.unauthenticated:
-        return ValueListenableBuilder<AuthSuccess?>(
-          valueListenable: client.auth.authInfoListenable,
-          builder: (context, authSuccess, child) {
-            if (!client.auth.isAuthenticated) {
-              return const SignInScreen();
-            }
-            return const PromiseHomePage();
-          },
-        );
+        ),
+      );
     }
+
+    return ValueListenableBuilder(
+      valueListenable: client.auth.authInfoListenable,
+      builder: (context, authInfo, _) {
+        if (!client.auth.isAuthenticated) {
+          return const SignInScreen();
+        }
+        return const DashboardScreen();
+      },
+    );
   }
 }
 
-class PromiseHomePage extends StatefulWidget {
-  const PromiseHomePage({super.key});
+class DashboardScreen extends StatefulWidget {
+  const DashboardScreen({super.key});
+
+  /// Evaluates the effective commitment type for a promise based on unified v0.4.0 legacy classification policy.
+  static String effectiveCommitmentType(Promise p, {String? parentType}) {
+    final raw = p.commitmentType?.trim().toLowerCase();
+
+    // 1. Group parent containers: 'freelance' or 'team' (legacy 'personal'/null defaults to 'team')
+    if (p.isGroupParent) {
+      if (raw == 'freelance') return 'freelance';
+      return 'team';
+    }
+
+    // 2. Child milestones: inherit parent's effective type if child has legacy 'personal' or null
+    if (p.parentPromiseId != null) {
+      if (raw == 'freelance' || raw == 'team') return raw!;
+      if (parentType != null && parentType.trim().isNotEmpty) {
+        final cleanParent = parentType.trim().toLowerCase();
+        if (cleanParent == 'freelance' || cleanParent == 'team') {
+          return cleanParent;
+        }
+      }
+      return 'team';
+    }
+
+    // 3. Standalone 1-on-1 commitments: 'personal', 'freelance', 'team' (default: 'personal')
+    if (raw != null &&
+        raw.isNotEmpty &&
+        ['personal', 'freelance', 'team'].contains(raw)) {
+      return raw;
+    }
+    return 'personal';
+  }
 
   @override
-  State<PromiseHomePage> createState() => _PromiseHomePageState();
+  State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _PromiseHomePageState extends State<PromiseHomePage>
+class _DashboardScreenState extends State<DashboardScreen>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late TabController _tabController;
   List<Promise> _promises = [];
-  int _unreadNotificationCount = 0;
-  bool _hasPendingFriends = false;
   bool _isLoading = true;
   String? _errorMessage;
+  int _unreadNotificationCount = 0;
+  bool _hasPendingFriends = false;
   Timer? _pollingTimer;
+
+  String _selectedTypeFilter = 'all';
 
   @override
   void initState() {
@@ -240,13 +170,9 @@ class _PromiseHomePageState extends State<PromiseHomePage>
     WidgetsBinding.instance.addObserver(this);
     _tabController = TabController(length: 2, vsync: this);
     _loadAllData();
-    _startPolling();
-  }
 
-  void _startPolling() {
-    _pollingTimer?.cancel();
     _pollingTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted) {
+      if (mounted && client.auth.isAuthenticated) {
         _loadCounts();
       }
     });
@@ -311,18 +237,30 @@ class _PromiseHomePageState extends State<PromiseHomePage>
   List<Promise> get _currentPromises {
     final list = _promises.where((p) {
       final s = p.status.toLowerCase();
-      return s == 'pending' ||
-          s == 'in_progress' ||
-          s == 'awaiting_confirmation';
+      final isStatusMatch =
+          s == 'pending' || s == 'in_progress' || s == 'awaiting_confirmation';
+      if (!isStatusMatch) return false;
+
+      if (_selectedTypeFilter != 'all') {
+        final type = DashboardScreen.effectiveCommitmentType(p);
+        return type == _selectedTypeFilter;
+      }
+      return true;
     }).toList();
     list.sort(DeadlineUtils.compareDeadlines);
     return list;
   }
 
   List<Promise> get _completedPromises {
-    final list = _promises
-        .where((p) => p.status.toLowerCase() == 'completed')
-        .toList();
+    final list = _promises.where((p) {
+      if (p.status.toLowerCase() != 'completed') return false;
+
+      if (_selectedTypeFilter != 'all') {
+        final type = DashboardScreen.effectiveCommitmentType(p);
+        return type == _selectedTypeFilter;
+      }
+      return true;
+    }).toList();
     list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return list;
   }
@@ -545,24 +483,75 @@ class _PromiseHomePageState extends State<PromiseHomePage>
       );
     }
 
-    return TabBarView(
-      controller: _tabController,
+    return Column(
       children: [
-        _buildPromiseList(
-          promises: currentList,
-          emptyTitle: 'No active promises yet.',
-          emptySubtitle:
-              'Create your first promise and keep track of your commitments.',
-          theme: theme,
-          showCreateButton: true,
+        // Commitment Type Filter Chips Row
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                FilterChip(
+                  label: const Text('All'),
+                  selected: _selectedTypeFilter == 'all',
+                  onSelected: (val) {
+                    if (val) setState(() => _selectedTypeFilter = 'all');
+                  },
+                ),
+                const SizedBox(width: 8),
+                FilterChip(
+                  avatar: const Icon(Icons.person_outline, size: 16),
+                  label: const Text('Personal'),
+                  selected: _selectedTypeFilter == 'personal',
+                  onSelected: (val) {
+                    if (val) setState(() => _selectedTypeFilter = 'personal');
+                  },
+                ),
+                const SizedBox(width: 8),
+                FilterChip(
+                  avatar: const Icon(Icons.work_outline, size: 16),
+                  label: const Text('Freelance'),
+                  selected: _selectedTypeFilter == 'freelance',
+                  onSelected: (val) {
+                    if (val) setState(() => _selectedTypeFilter = 'freelance');
+                  },
+                ),
+                const SizedBox(width: 8),
+                FilterChip(
+                  avatar: const Icon(Icons.groups_outlined, size: 16),
+                  label: const Text('Team'),
+                  selected: _selectedTypeFilter == 'team',
+                  onSelected: (val) {
+                    if (val) setState(() => _selectedTypeFilter = 'team');
+                  },
+                ),
+              ],
+            ),
+          ),
         ),
-        _buildPromiseList(
-          promises: completedList,
-          emptyTitle: 'No completed promises yet.',
-          emptySubtitle:
-              'Completed promises will appear here after mutual confirmation.',
-          theme: theme,
-          showCreateButton: false,
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildPromiseList(
+                promises: currentList,
+                emptyTitle: 'No active promises yet.',
+                emptySubtitle:
+                    'Create your first promise and keep track of your commitments.',
+                theme: theme,
+                showCreateButton: true,
+              ),
+              _buildPromiseList(
+                promises: completedList,
+                emptyTitle: 'No completed promises yet.',
+                emptySubtitle:
+                    'Completed promises will appear here after mutual confirmation.',
+                theme: theme,
+                showCreateButton: false,
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -652,35 +641,44 @@ class PromiseCard extends StatelessWidget {
     required this.onTap,
   });
 
-  String _formatDate(DateTime date) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    final weekday = weekdays[date.weekday - 1];
-    final month = months[date.month - 1];
-    return '$weekday, $month ${date.day}, ${date.year}';
-  }
+  Widget _buildTypeBadge(Promise p) {
+    final cleanType = DashboardScreen.effectiveCommitmentType(p);
+    IconData icon = Icons.person_outline;
+    String label = 'Personal';
+    Color color = Colors.purple;
 
-  String _formatTime(DateTime time) {
-    final localTime = time.toLocal();
-    final hour = localTime.hour == 0 || localTime.hour == 12
-        ? 12
-        : localTime.hour % 12;
-    final period = localTime.hour >= 12 ? 'PM' : 'AM';
-    final minute = localTime.minute.toString().padLeft(2, '0');
-    return '$hour:$minute $period';
+    if (cleanType == 'freelance') {
+      icon = Icons.work_outline;
+      label = 'Freelance';
+      color = Colors.blue;
+    } else if (cleanType == 'team') {
+      icon = Icons.groups_outlined;
+      label = 'Team';
+      color = Colors.teal;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -737,11 +735,33 @@ class PromiseCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: Text(
-                      promise.title,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            _buildTypeBadge(promise),
+                            if (promise.milestoneOrder != null) ...[
+                              const SizedBox(width: 6),
+                              Text(
+                                '#${promise.milestoneOrder}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme.primary,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          promise.title,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -755,11 +775,11 @@ class PromiseCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      statusLabel.toUpperCase(),
-                      style: theme.textTheme.labelSmall?.copyWith(
+                      statusLabel,
+                      style: TextStyle(
                         color: statusTextColor,
+                        fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
                       ),
                     ),
                   ),
@@ -770,42 +790,28 @@ class PromiseCard extends StatelessWidget {
                 children: [
                   Icon(
                     Icons.person_outline,
-                    size: 18,
+                    size: 16,
                     color: colorScheme.onSurfaceVariant,
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                   Text(
-                    'Promised to ',
-                    style: theme.textTheme.bodyMedium?.copyWith(
+                    'Promised to: ',
+                    style: theme.textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                   Expanded(
                     child: Text(
                       promise.promisedTo,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.bold,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
               ),
-              if (promise.description != null &&
-                  promise.description!.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  promise.description!,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-              const SizedBox(height: 12),
-              const Divider(height: 1),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   Icon(
@@ -813,77 +819,14 @@ class PromiseCard extends StatelessWidget {
                     size: 16,
                     color: colorScheme.primary,
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                   Text(
-                    _formatDate(
-                      DeadlineUtils.getDisplayDate(
-                        promise.dueDate,
-                        promise.dueTime != null,
-                      ),
-                    ),
+                    DeadlineUtils.getIndicatorText(promise),
                     style: theme.textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w500,
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  if (promise.dueTime != null) ...[
-                    const SizedBox(width: 12),
-                    Icon(
-                      Icons.access_time_outlined,
-                      size: 16,
-                      color: colorScheme.primary,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _formatTime(promise.dueTime!),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                  if (DeadlineUtils.getIndicatorText(promise).isNotEmpty) ...[
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color:
-                            DeadlineUtils.getIndicatorText(
-                              promise,
-                            ).contains('Overdue')
-                            ? colorScheme.errorContainer
-                            : (DeadlineUtils.getIndicatorText(
-                                        promise,
-                                      ).contains('Due today') ||
-                                      DeadlineUtils.getIndicatorText(
-                                        promise,
-                                      ).contains('Due tomorrow')
-                                  ? colorScheme.tertiaryContainer
-                                  : colorScheme.surfaceContainerHigh),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        DeadlineUtils.getIndicatorText(promise),
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color:
-                              DeadlineUtils.getIndicatorText(
-                                promise,
-                              ).contains('Overdue')
-                              ? colorScheme.onErrorContainer
-                              : (DeadlineUtils.getIndicatorText(
-                                          promise,
-                                        ).contains('Due today') ||
-                                        DeadlineUtils.getIndicatorText(
-                                          promise,
-                                        ).contains('Due tomorrow')
-                                    ? colorScheme.onTertiaryContainer
-                                    : colorScheme.onSurfaceVariant),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ],

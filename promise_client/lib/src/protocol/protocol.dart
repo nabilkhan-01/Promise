@@ -32,6 +32,7 @@ import 'greetings/greeting.dart' as _izw8z7ou;
 import 'notifications/app_notification.dart' as _ih0s0cfq;
 import 'promises/attachment_upload_description.dart' as _ipry8xt3;
 import 'promises/deadline_reminder_object.dart' as _iqhyy8ir;
+import 'promises/parent_project_metadata.dart' as _iegghg43;
 import 'promises/promise.dart' as _i9knynp5;
 import 'promises/promise_activity.dart' as _itvtbfbt;
 import 'promises/promise_attachment.dart' as _i64rwlud;
@@ -43,6 +44,7 @@ export 'greetings/greeting.dart';
 export 'notifications/app_notification.dart';
 export 'promises/attachment_upload_description.dart';
 export 'promises/deadline_reminder_object.dart';
+export 'promises/parent_project_metadata.dart';
 export 'promises/promise.dart';
 export 'promises/promise_activity.dart';
 export 'promises/promise_attachment.dart';
@@ -104,6 +106,9 @@ class Protocol extends _isc.SerializationManager {
     if (t == _iqhyy8ir.DeadlineReminderObject) {
       return _iqhyy8ir.DeadlineReminderObject.fromJson(data) as T;
     }
+    if (t == _iegghg43.ParentProjectMetadata) {
+      return _iegghg43.ParentProjectMetadata.fromJson(data) as T;
+    }
     if (t == _i9knynp5.Promise) {
       return _i9knynp5.Promise.fromJson(data) as T;
     }
@@ -145,6 +150,12 @@ class Protocol extends _isc.SerializationManager {
     if (t == _isc.getType<_iqhyy8ir.DeadlineReminderObject?>()) {
       return (data != null
               ? _iqhyy8ir.DeadlineReminderObject.fromJson(data)
+              : null)
+          as T;
+    }
+    if (t == _isc.getType<_iegghg43.ParentProjectMetadata?>()) {
+      return (data != null
+              ? _iegghg43.ParentProjectMetadata.fromJson(data)
               : null)
           as T;
     }
@@ -213,6 +224,7 @@ class Protocol extends _isc.SerializationManager {
       _ih0s0cfq.AppNotification => 'AppNotification',
       _ipry8xt3.AttachmentUploadDescription => 'AttachmentUploadDescription',
       _iqhyy8ir.DeadlineReminderObject => 'DeadlineReminderObject',
+      _iegghg43.ParentProjectMetadata => 'ParentProjectMetadata',
       _i9knynp5.Promise => 'Promise',
       _itvtbfbt.PromiseActivity => 'PromiseActivity',
       _i64rwlud.PromiseAttachment => 'PromiseAttachment',
@@ -245,6 +257,8 @@ class Protocol extends _isc.SerializationManager {
         return 'AttachmentUploadDescription';
       case _iqhyy8ir.DeadlineReminderObject():
         return 'DeadlineReminderObject';
+      case _iegghg43.ParentProjectMetadata():
+        return 'ParentProjectMetadata';
       case _i9knynp5.Promise():
         return 'Promise';
       case _itvtbfbt.PromiseActivity():
@@ -295,6 +309,9 @@ class Protocol extends _isc.SerializationManager {
     }
     if (dataClassName == 'DeadlineReminderObject') {
       return deserialize<_iqhyy8ir.DeadlineReminderObject>(data['data']);
+    }
+    if (dataClassName == 'ParentProjectMetadata') {
+      return deserialize<_iegghg43.ParentProjectMetadata>(data['data']);
     }
     if (dataClassName == 'Promise') {
       return deserialize<_i9knynp5.Promise>(data['data']);

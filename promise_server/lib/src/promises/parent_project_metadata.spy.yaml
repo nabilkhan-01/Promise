@@ -1,0 +1,10 @@
+class: ParentProjectMetadata
+fields:
+  id: int
+  title: String
+  description: String?
+  commitmentType: String?
+  status: String
+  dueDate: DateTime
+  dueTime: DateTime?
+  createdAt: DateTime

@@ -36,6 +36,7 @@ promise:
   - createGroupedPromise:
   - getPromises:
   - getPromise:
+  - getParentProjectMetadata:
   - getChildPromises:
   - acceptPromise:
   - getActivities:

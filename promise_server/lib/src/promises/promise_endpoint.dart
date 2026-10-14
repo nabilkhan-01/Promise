@@ -2,6 +2,7 @@ import 'package:serverpod_auth_idp_server/core.dart';
 import '../generated/protocol.dart';
 import '../generated/serverpod.dart';
 import '../notifications/notification_helper.dart';
+import 'promise_lifecycle_helper.dart';
 
 class PromiseEndpoint extends Endpoint {
   @override
@@ -37,6 +38,37 @@ class PromiseEndpoint extends Endpoint {
       userProfile = await session.authenticated?.userProfile(session);
     } catch (_) {}
     return userProfile?.email?.trim().toLowerCase() ?? '';
+  }
+
+  /// Helper to check if caller is direct creator or recipient of a promise.
+  bool _isDirectParticipant(
+    Promise promise,
+    String authUserId,
+    String userEmail,
+  ) {
+    final isCreator = promise.creatorUserId == authUserId;
+    final isRecipient =
+        promise.recipientUserId == authUserId ||
+        (!promise.isGroupParent &&
+            promise.recipientUserId == null &&
+            userEmail.isNotEmpty &&
+            promise.promisedTo.trim().toLowerCase() == userEmail);
+    return isCreator || isRecipient;
+  }
+
+  /// Helper to check if caller is an assigned recipient of at least one child commitment under a parent group promise.
+  Future<bool> _isChildRecipient(
+    Session session,
+    int parentPromiseId,
+    String authUserId,
+  ) async {
+    final child = await Promise.db.findFirstRow(
+      session,
+      where: (t) =>
+          t.parentPromiseId.equals(parentPromiseId) &
+          t.recipientUserId.equals(authUserId),
+    );
+    return child != null;
   }
 
   void _scheduleFutureCalls(Session session, Promise promise) {
@@ -92,6 +124,21 @@ class PromiseEndpoint extends Endpoint {
     }
     if (creatorUserId == recipientUserId) {
       throw ArgumentError('You cannot create a promise to yourself.');
+    }
+
+    final cleanType = promise.commitmentType?.trim().toLowerCase();
+    String finalType = 'personal';
+    if (cleanType != null && cleanType.isNotEmpty) {
+      if (!['personal', 'freelance', 'team'].contains(cleanType)) {
+        throw ArgumentError(
+          'Invalid commitment type: $cleanType. Must be personal, freelance, or team.',
+        );
+      }
+      finalType = cleanType;
+    }
+
+    if (promise.milestoneOrder != null && promise.milestoneOrder! <= 0) {
+      throw ArgumentError('Milestone order must be a positive integer.');
     }
 
     // FRIENDSHIP AUTHORIZATION CHECK: Verify creator and recipient are accepted friends
@@ -150,6 +197,8 @@ class PromiseEndpoint extends Endpoint {
       parentPromiseId: null,
       recipientAccepted: false,
       recipientAcceptedAt: null,
+      commitmentType: finalType,
+      milestoneOrder: null,
     );
 
     return await session.db.transaction((tx) async {
@@ -210,18 +259,40 @@ class PromiseEndpoint extends Endpoint {
       throw ArgumentError('Maximum 10 children allowed per group.');
     }
 
+    final cleanParentType = parent.commitmentType?.trim().toLowerCase();
+    String parentType = 'team';
+    if (cleanParentType != null &&
+        cleanParentType.isNotEmpty &&
+        cleanParentType != 'personal') {
+      if (!['freelance', 'team'].contains(cleanParentType)) {
+        throw ArgumentError(
+          'Invalid commitment type: $cleanParentType. Group promises must be freelance or team.',
+        );
+      }
+      parentType = cleanParentType;
+    }
+
     final creatorName = await _getUserDisplayName(session);
 
-    final recipientUserIds = children
-        .map((c) => c.recipientUserId?.trim())
-        .whereType<String>()
-        .toSet();
-    if (recipientUserIds.isEmpty ||
-        recipientUserIds.length != children.length) {
-      throw ArgumentError(
-        'All children must have a valid recipient user selected.',
-      );
+    for (var child in children) {
+      if (child.title.trim().isEmpty) {
+        throw ArgumentError('Child promise title cannot be empty.');
+      }
+      final recId = child.recipientUserId?.trim();
+      if (recId == null || recId.isEmpty) {
+        throw ArgumentError(
+          'All children must have a valid recipient user selected.',
+        );
+      }
+      if (child.milestoneOrder != null && child.milestoneOrder! <= 0) {
+        throw ArgumentError('Milestone order must be a positive integer.');
+      }
     }
+
+    final recipientUserIds = children
+        .map((c) => c.recipientUserId!.trim())
+        .toSet();
+
     if (recipientUserIds.contains(creatorUserId)) {
       throw ArgumentError('You cannot create a promise to yourself.');
     }
@@ -270,6 +341,8 @@ class PromiseEndpoint extends Endpoint {
       recipientUserId: null,
       isGroupParent: true,
       parentPromiseId: null,
+      commitmentType: parentType,
+      milestoneOrder: null,
     );
 
     return await session.db.transaction((tx) async {
@@ -293,10 +366,6 @@ class PromiseEndpoint extends Endpoint {
       );
 
       for (var child in children) {
-        if (child.title.trim().isEmpty) {
-          throw ArgumentError('Child promise title cannot be empty.');
-        }
-
         final recId = child.recipientUserId!.trim();
         final recProfile = profileMap[recId];
         String childPromisedTo = 'Friend';
@@ -307,6 +376,14 @@ class PromiseEndpoint extends Endpoint {
             childPromisedTo = name;
           } else if (email != null && email.isNotEmpty) {
             childPromisedTo = email;
+          }
+        }
+
+        final cleanChildType = child.commitmentType?.trim().toLowerCase();
+        String childType = parentType;
+        if (cleanChildType != null && cleanChildType.isNotEmpty) {
+          if (['personal', 'freelance', 'team'].contains(cleanChildType)) {
+            childType = cleanChildType;
           }
         }
 
@@ -324,6 +401,8 @@ class PromiseEndpoint extends Endpoint {
           parentPromiseId: insertedParent.id,
           recipientAccepted: false,
           recipientAcceptedAt: null,
+          commitmentType: childType,
+          milestoneOrder: child.milestoneOrder,
         );
 
         final insertedChild = await Promise.db.insertRow(
@@ -393,7 +472,7 @@ class PromiseEndpoint extends Endpoint {
     return promises;
   }
 
-  /// Retrieves a single promise by ID after authorizing participant access.
+  /// Retrieves a single promise by ID after authorizing direct participant access.
   Future<Promise?> getPromise(Session session, int id) async {
     final authUserId = _getAuthUserId(session);
     final userEmail = await _getUserEmail(session);
@@ -401,21 +480,15 @@ class PromiseEndpoint extends Endpoint {
     final promise = await Promise.db.findById(session, id);
     if (promise == null) return null;
 
-    final isCreator = promise.creatorUserId == authUserId;
-    final isRecipient =
-        promise.recipientUserId == authUserId ||
-        (!promise.isGroupParent &&
-            promise.recipientUserId == null &&
-            userEmail.isNotEmpty &&
-            promise.promisedTo.trim().toLowerCase() == userEmail);
+    final isDirect = _isDirectParticipant(promise, authUserId, userEmail);
 
-    if (!isCreator && !isRecipient) {
+    if (!isDirect) {
       throw ArgumentError('You do not have access to this promise.');
     }
 
     if (!promise.isGroupParent &&
         promise.recipientUserId == null &&
-        isRecipient) {
+        promise.creatorUserId != authUserId) {
       final updated = promise.copyWith(recipientUserId: authUserId);
       return await Promise.db.updateRow(session, updated);
     }
@@ -423,21 +496,124 @@ class PromiseEndpoint extends Endpoint {
     return promise;
   }
 
+  /// Retrieves read-only parent project metadata for a group promise.
+  /// Authorizes creator and assigned child recipients. Rejects unrelated users.
+  Future<ParentProjectMetadata> getParentProjectMetadata(
+    Session session,
+    int parentPromiseId,
+  ) async {
+    final authUserId = _getAuthUserId(session);
+    final parent = await Promise.db.findById(session, parentPromiseId);
+
+    if (parent == null || !parent.isGroupParent) {
+      throw ArgumentError('Group parent project not found.');
+    }
+
+    final isCreator = parent.creatorUserId == authUserId;
+    final isChildRec = await _isChildRecipient(
+      session,
+      parentPromiseId,
+      authUserId,
+    );
+
+    if (!isCreator && !isChildRec) {
+      throw ArgumentError(
+        'You do not have access to this parent project metadata.',
+      );
+    }
+
+    final rawType = parent.commitmentType?.trim().toLowerCase();
+    String effectiveType = 'team';
+    if (rawType != null &&
+        rawType != 'personal' &&
+        ['freelance', 'team'].contains(rawType)) {
+      effectiveType = rawType;
+    }
+
+    return ParentProjectMetadata(
+      id: parent.id!,
+      title: parent.title,
+      description: parent.description,
+      commitmentType: effectiveType,
+      status: parent.status,
+      dueDate: parent.dueDate,
+      dueTime: parent.dueTime,
+      createdAt: parent.createdAt,
+    );
+  }
+
   /// Retrieves children of a grouped promise.
+  /// Parents get all children. Child recipients get ONLY sub-tasks assigned to them (sibling isolation).
   Future<List<Promise>> getChildPromises(
     Session session,
     int parentPromiseId,
   ) async {
     final authUserId = _getAuthUserId(session);
     final parent = await Promise.db.findById(session, parentPromiseId);
-    if (parent == null || parent.creatorUserId != authUserId) {
+    if (parent == null) {
       throw ArgumentError('Access denied or parent not found.');
     }
-    return await Promise.db.find(
-      session,
-      where: (t) => t.parentPromiseId.equals(parentPromiseId),
-      orderBy: (t) => t.dueDate.asc(),
-    );
+
+    final isCreator = parent.creatorUserId == authUserId;
+    List<Promise> fetchedChildren;
+
+    if (isCreator) {
+      fetchedChildren = await Promise.db.find(
+        session,
+        where: (t) => t.parentPromiseId.equals(parentPromiseId),
+      );
+    } else {
+      final isChildRec = await _isChildRecipient(
+        session,
+        parentPromiseId,
+        authUserId,
+      );
+      if (!isChildRec) {
+        throw ArgumentError('Access denied or parent not found.');
+      }
+      fetchedChildren = await Promise.db.find(
+        session,
+        where: (t) =>
+            t.parentPromiseId.equals(parentPromiseId) &
+            t.recipientUserId.equals(authUserId),
+      );
+    }
+
+    // Deterministic sorting:
+    // 1. milestoneOrder ASC (explicit sequence numbers first, nulls last)
+    // 2. dueDate ASC
+    // 3. dueTime ASC (nulls last)
+    // 4. createdAt ASC
+    // 5. id ASC (tie-breaker)
+    fetchedChildren.sort((a, b) {
+      if (a.milestoneOrder != null && b.milestoneOrder != null) {
+        final orderComp = a.milestoneOrder!.compareTo(b.milestoneOrder!);
+        if (orderComp != 0) return orderComp;
+      } else if (a.milestoneOrder != null) {
+        return -1;
+      } else if (b.milestoneOrder != null) {
+        return 1;
+      }
+
+      final dateComp = a.dueDate.compareTo(b.dueDate);
+      if (dateComp != 0) return dateComp;
+
+      if (a.dueTime != null && b.dueTime != null) {
+        final timeComp = a.dueTime!.compareTo(b.dueTime!);
+        if (timeComp != 0) return timeComp;
+      } else if (a.dueTime != null) {
+        return -1;
+      } else if (b.dueTime != null) {
+        return 1;
+      }
+
+      final createdComp = a.createdAt.compareTo(b.createdAt);
+      if (createdComp != 0) return createdComp;
+
+      return (a.id ?? 0).compareTo(b.id ?? 0);
+    });
+
+    return fetchedChildren;
   }
 
   Future<void> _updateParentStatusIfNeeded(
@@ -445,58 +621,31 @@ class PromiseEndpoint extends Endpoint {
     int? parentPromiseId,
     Transaction tx,
   ) async {
-    if (parentPromiseId == null) return;
-
-    final children = await Promise.db.find(
-      session,
-      where: (t) => t.parentPromiseId.equals(parentPromiseId),
-      transaction: tx,
-    );
-
-    if (children.isEmpty) return;
-
-    bool allCompleted = true;
-    bool allPending = true;
-
-    for (final child in children) {
-      if (child.status != 'completed') {
-        allCompleted = false;
-      }
-      if (child.status != 'pending') {
-        allPending = false;
-      }
-    }
-
-    String newStatus = 'in_progress';
-    if (allCompleted) {
-      newStatus = 'completed';
-    } else if (allPending) {
-      newStatus = 'pending';
-    }
-
-    final parent = await Promise.db.findById(
+    await PromiseLifecycleHelper.updateParentStatusIfNeeded(
       session,
       parentPromiseId,
-      transaction: tx,
+      tx,
     );
-    if (parent != null && parent.status != newStatus) {
-      await Promise.db.updateRow(
-        session,
-        parent.copyWith(status: newStatus),
-        transaction: tx,
-      );
-    }
   }
 
   /// Accepts an unaccepted promise invitation.
   Future<Promise> acceptPromise(Session session, int promiseId) async {
     final authUserId = _getAuthUserId(session);
-    final existing = await getPromise(session, promiseId);
+    final userEmail = await _getUserEmail(session);
+
+    final existing = await Promise.db.findById(session, promiseId);
     if (existing == null) {
       throw ArgumentError('Promise with ID $promiseId not found.');
     }
 
-    if (existing.recipientUserId != authUserId) {
+    final isDirectRec =
+        existing.recipientUserId == authUserId ||
+        (!existing.isGroupParent &&
+            existing.recipientUserId == null &&
+            userEmail.isNotEmpty &&
+            existing.promisedTo.trim().toLowerCase() == userEmail);
+
+    if (!isDirectRec) {
       throw ArgumentError(
         'Only the assigned recipient can accept this promise.',
       );
@@ -511,6 +660,7 @@ class PromiseEndpoint extends Endpoint {
 
     return await session.db.transaction((tx) async {
       final updatedPromise = existing.copyWith(
+        recipientUserId: existing.recipientUserId ?? authUserId,
         recipientAccepted: true,
         recipientAcceptedAt: now,
       );
@@ -596,14 +746,23 @@ class PromiseEndpoint extends Endpoint {
     });
   }
 
-  /// Retrieves activities for a promise after authorizing participant access.
+  /// Retrieves activities for a promise after authorizing direct participant access.
   Future<List<PromiseActivity>> getActivities(
     Session session,
     int promiseId,
   ) async {
-    final promise = await getPromise(session, promiseId);
+    final authUserId = _getAuthUserId(session);
+    final userEmail = await _getUserEmail(session);
+
+    final promise = await Promise.db.findById(session, promiseId);
     if (promise == null) {
       throw ArgumentError('Promise with ID $promiseId not found.');
+    }
+
+    if (!_isDirectParticipant(promise, authUserId, userEmail)) {
+      throw ArgumentError(
+        'You do not have direct participant access to this promise\'s activities.',
+      );
     }
 
     return await PromiseActivity.db.find(
@@ -613,7 +772,7 @@ class PromiseEndpoint extends Endpoint {
     );
   }
 
-  /// Adds a new activity update for a promise. Does NOT alter overall promise status.
+  /// Adds a new activity update for a promise after authorizing direct participant access.
   Future<PromiseActivity> addActivity(
     Session session,
     int promiseId,
@@ -626,9 +785,18 @@ class PromiseEndpoint extends Endpoint {
       throw ArgumentError('Activity message cannot be empty.');
     }
 
-    final promise = await getPromise(session, promiseId);
+    final authUserId = _getAuthUserId(session);
+    final userEmail = await _getUserEmail(session);
+
+    final promise = await Promise.db.findById(session, promiseId);
     if (promise == null) {
       throw ArgumentError('Promise with ID $promiseId not found.');
+    }
+
+    if (!_isDirectParticipant(promise, authUserId, userEmail)) {
+      throw ArgumentError(
+        'You do not have direct participant access to add updates to this promise.',
+      );
     }
 
     if (promise.status == 'completed') {
@@ -641,7 +809,6 @@ class PromiseEndpoint extends Endpoint {
       );
     }
 
-    final currentUserId = _getAuthUserId(session);
     final userName = await _getUserDisplayName(session);
     final formattedMessage = '$userName: $cleanMessage';
 
@@ -662,7 +829,7 @@ class PromiseEndpoint extends Endpoint {
         transaction: tx,
       );
 
-      final otherUserId = promise.creatorUserId == currentUserId
+      final otherUserId = promise.creatorUserId == authUserId
           ? promise.recipientUserId
           : promise.creatorUserId;
 
@@ -718,7 +885,6 @@ class PromiseEndpoint extends Endpoint {
       );
     }
 
-    // Role is derived on server, not trusted from client parameter
     final resolvedRole = isCreator ? 'creator' : 'recipient';
 
     if (existing.status == 'completed' ||
@@ -929,14 +1095,20 @@ class PromiseEndpoint extends Endpoint {
     String newStatus,
   ) async {
     final authUserId = _getAuthUserId(session);
+    final userEmail = await _getUserEmail(session);
+
     final cleanStatus = newStatus.trim().toLowerCase();
     if (cleanStatus.isEmpty) {
       throw ArgumentError('New status cannot be empty.');
     }
 
-    final existing = await getPromise(session, promiseId);
+    final existing = await Promise.db.findById(session, promiseId);
     if (existing == null) {
       throw ArgumentError('Promise with ID $promiseId not found.');
+    }
+
+    if (!_isDirectParticipant(existing, authUserId, userEmail)) {
+      throw ArgumentError('You are not a participant of this promise.');
     }
 
     if (existing.status == cleanStatus) {

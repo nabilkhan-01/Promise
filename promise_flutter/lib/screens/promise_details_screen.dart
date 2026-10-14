@@ -34,6 +34,7 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
   List<PromiseActivity> _activities = [];
   List<PromiseAttachment> _attachments = [];
   List<Promise> _childPromises = [];
+  ParentProjectMetadata? _parentProject;
   bool _isLoading = true;
   bool _isUpdatingStatus = false;
 
@@ -76,6 +77,16 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
           });
         }
       }
+      if (_currentPromise.parentPromiseId != null) {
+        final parent = await client.promise.getParentProjectMetadata(
+          _currentPromise.parentPromiseId!,
+        );
+        if (mounted) {
+          setState(() {
+            _parentProject = parent;
+          });
+        }
+      }
     } catch (_) {}
   }
 
@@ -94,14 +105,37 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
         return;
       }
 
-      final activities = await client.promise.getActivities(widget.promiseId);
-      final attachments = await client.attachment.getAttachments(
-        widget.promiseId,
-      );
+      final currentAuthUserId = client.auth.authInfo?.authUserId.toString();
+      final isDirectParticipant =
+          promise.creatorUserId == currentAuthUserId ||
+          promise.recipientUserId == currentAuthUserId;
+
+      List<PromiseActivity> activities = [];
+      List<PromiseAttachment> attachments = [];
+
+      if (isDirectParticipant) {
+        try {
+          activities = await client.promise.getActivities(widget.promiseId);
+          attachments = await client.attachment.getAttachments(
+            widget.promiseId,
+          );
+        } catch (_) {}
+      }
 
       List<Promise> children = [];
       if (promise.isGroupParent) {
-        children = await client.promise.getChildPromises(widget.promiseId);
+        try {
+          children = await client.promise.getChildPromises(widget.promiseId);
+        } catch (_) {}
+      }
+
+      ParentProjectMetadata? parentProject;
+      if (promise.parentPromiseId != null) {
+        try {
+          parentProject = await client.promise.getParentProjectMetadata(
+            promise.parentPromiseId!,
+          );
+        } catch (_) {}
       }
 
       if (!mounted) return;
@@ -110,6 +144,7 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
         _activities = activities;
         _attachments = attachments;
         _childPromises = children;
+        _parentProject = parentProject;
         _isLoading = false;
       });
     } catch (e) {
@@ -181,21 +216,8 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
     }
   }
 
-  Future<void> _confirmCompletion(String partyRole) async {
-    if (_currentPromise.status == 'completed' || _isUpdatingStatus) return;
-
-    if (_currentPromise.recipientUserId != null &&
-        !_currentPromise.recipientAccepted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Cannot confirm completion on an unaccepted promise invitation.',
-          ),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
-      return;
-    }
+  Future<void> _confirmCompletion(String role) async {
+    if (_isUpdatingStatus) return;
 
     setState(() {
       _isUpdatingStatus = true;
@@ -204,34 +226,109 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
     try {
       final updated = await client.promise.confirmPromiseCompletion(
         _currentPromise.id!,
-        partyRole,
+        role,
       );
-
-      _hasChanges = true;
-      _loadData(showLoading: false);
-
       if (!mounted) return;
+      setState(() {
+        _currentPromise = updated;
+        _hasChanges = true;
+      });
+      _loadData(showLoading: false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             updated.status == 'completed'
-                ? 'Promise completed successfully!'
-                : 'Confirmation recorded. Awaiting other party.',
+                ? 'Promise completed! Both parties have confirmed.'
+                : 'Completion confirmed. Awaiting confirmation from the other party.',
           ),
-          backgroundColor: updated.status == 'completed'
-              ? Colors.green
-              : Theme.of(context).colorScheme.primary,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            e.toString().contains('both parties')
-                ? 'Cannot set Completed until both parties confirm completion.'
-                : 'Could not update status. Please check connection.',
+          content: const Text('Could not confirm promise completion.'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdatingStatus = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _showRequestChangesDialog() async {
+    final reasonController = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Request Changes'),
+        content: TextField(
+          controller: reasonController,
+          maxLines: 3,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(
+            hintText: 'Describe the changes needed...',
+            border: OutlineInputBorder(),
           ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(context, reasonController.text.trim()),
+            child: const Text('Submit Request'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      _requestChanges(result);
+    }
+  }
+
+  Future<void> _requestChanges(String reason) async {
+    if (_isUpdatingStatus) return;
+
+    setState(() {
+      _isUpdatingStatus = true;
+    });
+
+    try {
+      final currentAuthUserId = client.auth.authInfo?.authUserId.toString();
+      final isCreator = _currentPromise.creatorUserId == currentAuthUserId;
+      final role = isCreator ? 'creator' : 'recipient';
+
+      final updated = await client.promise.requestChanges(
+        _currentPromise.id!,
+        role,
+        reason,
+      );
+      if (!mounted) return;
+      setState(() {
+        _currentPromise = updated;
+        _hasChanges = true;
+      });
+      _loadData(showLoading: false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Change request submitted.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Could not request changes.'),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
@@ -245,120 +342,77 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
   }
 
   Future<void> _uploadAttachment() async {
-    if (_currentPromise.status == 'completed' ||
-        _isUpdatingStatus ||
-        _isUploadingAttachment) {
-      return;
-    }
+    if (_isUploadingAttachment) return;
 
-    if (_currentPromise.recipientUserId != null &&
-        !_currentPromise.recipientAccepted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Cannot upload attachments before the promise is accepted.',
-          ),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
-      return;
-    }
+    final files = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg'],
+    );
+
+    if (files.isEmpty) return;
+    final file = files.first;
+    if (file.path == null) return;
+
+    setState(() {
+      _isUploadingAttachment = true;
+      _isUploadSuccess = false;
+      _uploadProgressMessage = 'Preparing upload...';
+    });
+
+    final fileSize = File(file.path!).lengthSync();
 
     try {
-      final files = await FilePicker.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg'],
-      );
-
-      if (files.isEmpty) return;
-
-      final file = files.first;
-      if (file.path == null) {
-        throw Exception('File path is unavailable on this device.');
-      }
-
-      final fileSize = File(file.path!).lengthSync();
-      if (fileSize > 10 * 1024 * 1024) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-              'Couldn\'t upload this file. Check your connection and ensure it is under 10 MB, then try again.',
-            ),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-        return;
-      }
-
-      setState(() {
-        _isUpdatingStatus = true;
-        _isUploadingAttachment = true;
-        _isUploadSuccess = false;
-        _uploadProgressMessage = 'Preparing upload...';
-      });
-
-      final uploadData = await client.attachment.getUploadDescription(
+      final uploadDescription = await client.attachment.getUploadDescription(
         _currentPromise.id!,
         file.name,
         fileSize,
       );
 
-      if (uploadData == null) {
-        throw Exception('Failed to retrieve upload description from server.');
+      if (uploadDescription == null) {
+        throw Exception('Could not get upload description.');
       }
 
       setState(() {
         _uploadProgressMessage = 'Uploading ${file.name}...';
       });
 
-      final fileObj = File(file.path!);
-      final stream = fileObj.openRead();
+      final uploader = FileUploader(uploadDescription.uploadDescription);
+      final stream = File(file.path!).openRead();
+      final success = await uploader.upload(stream, fileSize);
 
-      final uploader = FileUploader(uploadData.uploadDescription);
-      final uploadSuccess = await uploader.upload(stream, fileSize);
-
-      if (!uploadSuccess) {
-        throw Exception('Physical byte upload to storage failed.');
+      if (!success) {
+        throw Exception('Upload to cloud storage failed.');
       }
 
       setState(() {
         _uploadProgressMessage = 'Verifying attachment...';
       });
 
+      final ext = file.name.split('.').last.toLowerCase();
       String mimeType = 'application/octet-stream';
-      final ext = file.extension?.toLowerCase();
       if (ext == 'pdf') mimeType = 'application/pdf';
       if (ext == 'png') mimeType = 'image/png';
       if (ext == 'jpg' || ext == 'jpeg') mimeType = 'image/jpeg';
 
       await client.attachment.verifyAttachment(
         _currentPromise.id!,
-        uploadData.path,
+        uploadDescription.path,
         file.name,
         fileSize,
         mimeType,
       );
 
+      if (!mounted) return;
       setState(() {
         _isUploadingAttachment = false;
         _isUploadSuccess = true;
-        _uploadProgressMessage = 'Upload complete';
+        _uploadProgressMessage = 'Upload complete!';
+        _hasChanges = true;
       });
 
-      _hasChanges = true;
       _loadData(showLoading: false);
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Upload complete'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-
-      Future.delayed(const Duration(milliseconds: 1500), () {
+      Future.delayed(const Duration(milliseconds: 2000), () {
         if (mounted) {
           setState(() {
             _isUploadSuccess = false;
@@ -367,28 +421,22 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
         }
       });
     } catch (e) {
-      if (mounted) {
-        final errorStr = e.toString();
-        String displayMsg =
-            'Couldn\'t upload this file. Check your connection and ensure it is under 10 MB, then try again.';
-        if (errorStr.contains('ArgumentError:')) {
-          displayMsg = errorStr.replaceFirst('ArgumentError:', '').trim();
-        }
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(displayMsg),
-            backgroundColor: Theme.of(context).colorScheme.error,
+      if (!mounted) return;
+      setState(() {
+        _isUploadingAttachment = false;
+        _isUploadSuccess = false;
+        _uploadProgressMessage = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString().contains('10MB')
+                ? 'File exceeds 10MB limit.'
+                : 'Upload failed. Please try again.',
           ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isUpdatingStatus = false;
-          _isUploadingAttachment = false;
-        });
-      }
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
     }
   }
 
@@ -405,173 +453,82 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Could not download file.'),
+          content: const Text('Could not open download link.'),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     }
   }
 
-  Future<void> _reviewAttachment(int attachmentId, String action) async {
-    if (_isUpdatingStatus || _reviewingAttachmentId != null) return;
-
-    String? reason;
-    if (action == 'rejected') {
-      reason = await _showRejectionDialog();
-      if (reason == null) return;
-    }
+  Future<void> _reviewAttachment(int attachmentId, String decision) async {
+    if (_isUpdatingStatus) return;
 
     setState(() {
       _isUpdatingStatus = true;
       _reviewingAttachmentId = attachmentId;
-      _reviewingAction = action;
-      _reviewedSuccessAttachmentId = null;
+      _reviewingAction = decision;
     });
+
+    String? rejectionReason;
+    if (decision == 'rejected') {
+      final controller = TextEditingController();
+      rejectionReason = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Reject Evidence'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              hintText: 'Reason for rejection...',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, controller.text.trim()),
+              child: const Text('Reject'),
+            ),
+          ],
+        ),
+      );
+
+      if (rejectionReason == null) {
+        setState(() {
+          _isUpdatingStatus = false;
+          _reviewingAttachmentId = null;
+          _reviewingAction = null;
+        });
+        return;
+      }
+    }
 
     try {
       await client.attachment.reviewAttachment(
         attachmentId,
-        action,
-        rejectionReason: reason,
+        decision,
+        rejectionReason: rejectionReason,
       );
+      if (!mounted) return;
       setState(() {
         _reviewedSuccessAttachmentId = attachmentId;
+        _hasChanges = true;
       });
-      _hasChanges = true;
       _loadData(showLoading: false);
-
       Future.delayed(const Duration(milliseconds: 1500), () {
         if (mounted) {
           setState(() {
             _reviewedSuccessAttachmentId = null;
-            _reviewingAttachmentId = null;
-            _reviewingAction = null;
           });
         }
       });
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _reviewingAttachmentId = null;
-          _reviewingAction = null;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              e.toString().contains('uploader cannot review')
-                  ? 'You cannot review your own attachment.'
-                  : 'Failed to update review status.',
-            ),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isUpdatingStatus = false;
-        });
-      }
-    }
-  }
-
-  Future<String?> _showRejectionDialog() async {
-    final controller = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reject Evidence'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            hintText: 'Enter reason for rejection...',
-            border: OutlineInputBorder(),
-          ),
-          maxLines: 3,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Reject'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _showRequestChangesDialog() async {
-    final controller = TextEditingController();
-    final reason = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Request Changes'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Requesting changes will reset existing completions and return this promise to In Progress.',
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              decoration: const InputDecoration(
-                hintText: 'Reason for change request...',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 3,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Submit Request'),
-          ),
-        ],
-      ),
-    );
-
-    if (reason == null || reason.isEmpty) return;
-
-    setState(() {
-      _isUpdatingStatus = true;
-    });
-
-    try {
-      final currentAuthUserId = client.auth.authInfo?.authUserId.toString();
-      final isUserCreator =
-          _currentPromise.creatorUserId == null ||
-          _currentPromise.creatorUserId == currentAuthUserId;
-
-      await client.promise.requestChanges(
-        _currentPromise.id!,
-        isUserCreator ? 'creator' : 'recipient',
-        reason,
-      );
-      _hasChanges = true;
-      _loadData(showLoading: false);
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Change request submitted.'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Could not submit change request.'),
+          content: const Text('Could not review evidence.'),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
@@ -579,6 +536,8 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
       if (mounted) {
         setState(() {
           _isUpdatingStatus = false;
+          _reviewingAttachmentId = null;
+          _reviewingAction = null;
         });
       }
     }
@@ -587,11 +546,11 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
   Color _getStatusColor(String status, ColorScheme colorScheme) {
     switch (status.toLowerCase()) {
       case 'completed':
-        return Colors.green;
+        return Colors.green.shade700;
       case 'awaiting_confirmation':
-        return colorScheme.primary;
+        return Colors.orange.shade800;
       case 'in_progress':
-        return Colors.orange;
+        return Colors.blue.shade700;
       case 'pending':
       default:
         return colorScheme.outline;
@@ -610,6 +569,73 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
       default:
         return 'Pending';
     }
+  }
+
+  Widget _buildTypeBadge(
+    String? type,
+    ThemeData theme, {
+    bool isGroupParent = false,
+    bool isChild = false,
+    String? parentType,
+  }) {
+    String cleanType = type?.trim().toLowerCase() ?? '';
+
+    if (isGroupParent) {
+      if (cleanType != 'freelance') {
+        cleanType = 'team';
+      }
+    } else if (isChild) {
+      if (cleanType != 'freelance' && cleanType != 'team') {
+        if (parentType != null && parentType.trim().isNotEmpty) {
+          final pType = parentType.trim().toLowerCase();
+          cleanType = (pType == 'freelance') ? 'freelance' : 'team';
+        } else {
+          cleanType = 'team';
+        }
+      }
+    } else {
+      if (!['personal', 'freelance', 'team'].contains(cleanType)) {
+        cleanType = 'personal';
+      }
+    }
+
+    IconData icon = Icons.person_outline;
+    String label = 'Personal';
+    Color color = Colors.purple;
+
+    if (cleanType == 'freelance') {
+      icon = Icons.work_outline;
+      label = 'Freelance';
+      color = Colors.blue;
+    } else if (cleanType == 'team') {
+      icon = Icons.groups_outlined;
+      label = 'Team';
+      color = Colors.teal;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -661,7 +687,72 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              // Details Card
+              // Parent Project Context Header Card (if child commitment)
+              if (_parentProject != null) ...[
+                Card(
+                  elevation: 0,
+                  color: colorScheme.secondaryContainer.withValues(alpha: 0.4),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: colorScheme.secondary.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.folder_open_outlined,
+                              color: colorScheme.secondary,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Parent Project',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: colorScheme.secondary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const Spacer(),
+                            _buildTypeBadge(
+                              _parentProject!.commitmentType,
+                              theme,
+                              isGroupParent: true,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _parentProject!.title,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (_parentProject!.description?.isNotEmpty ==
+                            true) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            _parentProject!.description!,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              // Main Details Card
               Card(
                 elevation: 0,
                 shape: RoundedRectangleBorder(
@@ -676,17 +767,36 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Text(
-                              _currentPromise.title,
-                              style: theme.textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
+                          _buildTypeBadge(
+                            _currentPromise.commitmentType,
+                            theme,
+                            isGroupParent: _currentPromise.isGroupParent,
+                            isChild: _currentPromise.parentPromiseId != null,
+                            parentType: _parentProject?.commitmentType,
+                          ),
+                          if (_currentPromise.milestoneOrder != null) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: colorScheme.surfaceContainerHigh,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                'Milestone #${_currentPromise.milestoneOrder}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme.onSurface,
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
+                          ],
+                          const Spacer(),
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 12,
@@ -708,6 +818,13 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
                             ),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _currentPromise.title,
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 12),
 
@@ -868,7 +985,7 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
                 const SizedBox(height: 16),
               ],
 
-              // Group Sub-Promises Card
+              // Group Sub-Promises / Milestones Card
               if (_currentPromise.isGroupParent &&
                   _childPromises.isNotEmpty) ...[
                 Card(
@@ -885,7 +1002,7 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Group Commitments (${_childPromises.length})',
+                          'Sub-Promises / Milestones (${_childPromises.length})',
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -894,11 +1011,27 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
                         ..._childPromises.map(
                           (child) => ListTile(
                             contentPadding: EdgeInsets.zero,
-                            title: Text(
-                              child.title,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
+                            title: Row(
+                              children: [
+                                if (child.milestoneOrder != null) ...[
+                                  Text(
+                                    '#${child.milestoneOrder} ',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: colorScheme.primary,
+                                    ),
+                                  ),
+                                ],
+                                Expanded(
+                                  child: Text(
+                                    child.title,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
                             subtitle: Text('To: ${child.promisedTo}'),
                             trailing: Chip(
@@ -1135,7 +1268,7 @@ class _PromiseDetailsScreenState extends State<PromiseDetailsScreen> {
               ),
               const SizedBox(height: 8),
               if (_activities.isEmpty)
-                const Text('No activity history yet.')
+                const Text('No activity history available.')
               else
                 ..._activities.map(
                   (act) => ListTile(

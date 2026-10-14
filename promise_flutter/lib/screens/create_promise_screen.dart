@@ -16,6 +16,7 @@ class _ChildPromiseData {
   UserSearchProfile? recipient;
   DateTime? dueDate;
   TimeOfDay? dueTime;
+  int? milestoneOrder;
 }
 
 class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
@@ -25,6 +26,7 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
   final _descriptionController = TextEditingController();
 
   bool _isGroupPromise = false;
+  String _selectedCommitmentType = 'personal';
 
   // For single promise
   UserSearchProfile? _selectedFriend;
@@ -167,7 +169,9 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
 
   void _addChildPromise() {
     setState(() {
-      _childPromises.add(_ChildPromiseData());
+      final newChild = _ChildPromiseData();
+      newChild.milestoneOrder = _childPromises.length + 1;
+      _childPromises.add(newChild);
     });
   }
 
@@ -272,6 +276,7 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
           createdAt: DateTime.now().toUtc(),
           status: 'pending',
           isGroupParent: false,
+          commitmentType: _selectedCommitmentType,
         );
 
         final createdPromise = await client.promise.createPromise(
@@ -292,6 +297,7 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
           createdAt: DateTime.now().toUtc(),
           status: 'pending',
           isGroupParent: true,
+          commitmentType: _selectedCommitmentType,
         );
 
         final childrenToCreate = _childPromises.map((c) {
@@ -323,6 +329,8 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
             createdAt: DateTime.now().toUtc(),
             status: 'pending',
             isGroupParent: false,
+            commitmentType: _selectedCommitmentType,
+            milestoneOrder: c.milestoneOrder,
           );
         }).toList();
 
@@ -387,7 +395,49 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 20),
+
+              // Commitment Type Selector
+              Text(
+                'Commitment Type',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              SegmentedButton<String>(
+                segments: [
+                  if (!_isGroupPromise)
+                    const ButtonSegment(
+                      value: 'personal',
+                      label: Text('Personal'),
+                      icon: Icon(Icons.person_outline),
+                    ),
+                  const ButtonSegment(
+                    value: 'freelance',
+                    label: Text('Freelance'),
+                    icon: Icon(Icons.work_outline),
+                  ),
+                  const ButtonSegment(
+                    value: 'team',
+                    label: Text('Team'),
+                    icon: Icon(Icons.groups_outlined),
+                  ),
+                ],
+                selected: {
+                  _isGroupPromise && _selectedCommitmentType == 'personal'
+                      ? 'freelance'
+                      : _selectedCommitmentType,
+                },
+                onSelectionChanged: _isLoading
+                    ? null
+                    : (Set<String> selection) {
+                        setState(() {
+                          _selectedCommitmentType = selection.first;
+                        });
+                      },
+              ),
+              const SizedBox(height: 24),
 
               // Promise Title
               TextFormField(
@@ -411,14 +461,13 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
               const SizedBox(height: 18),
 
               // Recipient Friend Selector
-              const SizedBox(height: 24),
               SwitchListTile(
                 title: const Text(
-                  'Group Promise',
+                  'Group Promise / Milestones',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 subtitle: const Text(
-                  'Assign multiple tasks to different friends.',
+                  'Assign sub-tasks or milestones to one or more friends.',
                 ),
                 value: _isGroupPromise,
                 onChanged: _isLoading
@@ -426,8 +475,13 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
                     : (val) {
                         setState(() {
                           _isGroupPromise = val;
-                          if (val && _childPromises.isEmpty) {
-                            _childPromises.add(_ChildPromiseData());
+                          if (val) {
+                            if (_selectedCommitmentType == 'personal') {
+                              _selectedCommitmentType = 'freelance';
+                            }
+                            if (_childPromises.isEmpty) {
+                              _addChildPromise();
+                            }
                           }
                         });
                       },
@@ -488,7 +542,7 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
               ] else ...[
                 const SizedBox(height: 16),
                 Text(
-                  'Sub-Promises',
+                  'Sub-Promises / Milestones',
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -514,7 +568,7 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
                             children: [
                               Expanded(
                                 child: Text(
-                                  'Task ${index + 1}',
+                                  'Task / Milestone ${index + 1}',
                                   style: theme.textTheme.titleSmall?.copyWith(
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -538,13 +592,42 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
                             onChanged: (v) => child.title = v,
                           ),
                           const SizedBox(height: 12),
-                          TextFormField(
-                            enabled: !_isLoading,
-                            decoration: const InputDecoration(
-                              labelText: 'Task Description (optional)',
-                              filled: true,
-                            ),
-                            onChanged: (v) => child.description = v,
+                          Row(
+                            children: [
+                              Expanded(
+                                flex: 2,
+                                child: TextFormField(
+                                  enabled: !_isLoading,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Task Description (optional)',
+                                    filled: true,
+                                  ),
+                                  onChanged: (v) => child.description = v,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                flex: 1,
+                                child: TextFormField(
+                                  enabled: !_isLoading,
+                                  initialValue: child.milestoneOrder
+                                      ?.toString(),
+                                  keyboardType: TextInputType.number,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Order #',
+                                    hintText: '1',
+                                    filled: true,
+                                  ),
+                                  onChanged: (v) {
+                                    final parsed = int.tryParse(v.trim());
+                                    child.milestoneOrder =
+                                        (parsed != null && parsed > 0)
+                                        ? parsed
+                                        : null;
+                                  },
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 12),
                           OutlinedButton.icon(
@@ -616,7 +699,7 @@ class _CreatePromiseScreenState extends State<CreatePromiseScreen> {
                 OutlinedButton.icon(
                   onPressed: _isLoading ? null : _addChildPromise,
                   icon: const Icon(Icons.add),
-                  label: const Text('Add Sub-Promise'),
+                  label: const Text('Add Sub-Promise / Milestone'),
                 ),
               ],
               const SizedBox(height: 18),

@@ -87,6 +87,66 @@ void main() {
       expect(children[0].isGroupParent, isFalse);
     });
 
+    test(
+      'can create grouped promise with multiple child commitments assigned to the same recipient friend',
+      () async {
+        final creatorSession = sessionBuilder.copyWith(
+          authentication: AuthenticationOverride.authenticationInfo(
+            creatorId,
+            {},
+          ),
+        );
+
+        final parent = Promise(
+          title: 'Freelance Website Contract',
+          promisedTo: '',
+          dueDate: DateTime.now().toUtc(),
+          createdAt: DateTime.now().toUtc(),
+          status: 'pending',
+          commitmentType: 'freelance',
+        );
+
+        final m1 = Promise(
+          title: 'Milestone 1 - Design',
+          promisedTo: '',
+          recipientUserId: child1Id,
+          dueDate: DateTime.now().toUtc().add(const Duration(days: 2)),
+          createdAt: DateTime.now().toUtc(),
+          status: 'pending',
+          milestoneOrder: 1,
+        );
+
+        final m2 = Promise(
+          title: 'Milestone 2 - Backend API',
+          promisedTo: '',
+          recipientUserId: child1Id,
+          dueDate: DateTime.now().toUtc().add(const Duration(days: 5)),
+          createdAt: DateTime.now().toUtc(),
+          status: 'pending',
+          milestoneOrder: 2,
+        );
+
+        final createdParent = await endpoints.promise.createGroupedPromise(
+          creatorSession,
+          parent,
+          [m1, m2],
+        );
+
+        expect(createdParent.commitmentType, 'freelance');
+
+        final children = await endpoints.promise.getChildPromises(
+          creatorSession,
+          createdParent.id!,
+        );
+
+        expect(children.length, 2);
+        expect(children[0].recipientUserId, child1Id);
+        expect(children[1].recipientUserId, child1Id);
+        expect(children[0].milestoneOrder, 1);
+        expect(children[1].milestoneOrder, 2);
+      },
+    );
+
     test('child updates bubble up to parent status', () async {
       final creatorSession = sessionBuilder.copyWith(
         authentication: AuthenticationOverride.authenticationInfo(
@@ -239,75 +299,321 @@ void main() {
       );
     });
 
-    test('sibling recipients cannot access each other', () async {
-      final creatorSession = sessionBuilder.copyWith(
-        authentication: AuthenticationOverride.authenticationInfo(
-          creatorId,
-          {},
-        ),
-      );
-      final child1Session = sessionBuilder.copyWith(
-        authentication: AuthenticationOverride.authenticationInfo(child1Id, {}),
-      );
+    test(
+      'parent metadata read-only access and strict authorization boundaries',
+      () async {
+        final creatorSession = sessionBuilder.copyWith(
+          authentication: AuthenticationOverride.authenticationInfo(
+            creatorId,
+            {},
+          ),
+        );
+        final child1Session = sessionBuilder.copyWith(
+          authentication: AuthenticationOverride.authenticationInfo(
+            child1Id,
+            {},
+          ),
+        );
+        final unrelatedSession = sessionBuilder.copyWith(
+          authentication: AuthenticationOverride.authenticationInfo(
+            '44444444-4444-4444-a444-444444444444',
+            {},
+          ),
+        );
 
-      final parent = Promise(
-        title: 'P',
-        promisedTo: '',
-        dueDate: DateTime.now().toUtc(),
-        createdAt: DateTime.now().toUtc(),
-        status: 'pending',
-      );
-      final c1 = Promise(
-        title: 'C1',
-        promisedTo: '',
-        recipientUserId: child1Id,
-        dueDate: DateTime.now().toUtc(),
-        createdAt: DateTime.now().toUtc(),
-        status: 'pending',
-      );
-      final c2 = Promise(
-        title: 'C2',
-        promisedTo: '',
-        recipientUserId: child2Id,
-        dueDate: DateTime.now().toUtc(),
-        createdAt: DateTime.now().toUtc(),
-        status: 'pending',
-      );
-      final createdParent = await endpoints.promise.createGroupedPromise(
-        creatorSession,
-        parent,
-        [c1, c2],
-      );
+        final parent = Promise(
+          title: 'Parent Project',
+          promisedTo: '',
+          description: 'Project Scope Document',
+          dueDate: DateTime.now().toUtc(),
+          createdAt: DateTime.now().toUtc(),
+          status: 'pending',
+          commitmentType: 'freelance',
+        );
+        final c1 = Promise(
+          title: 'C1 for Child1',
+          promisedTo: '',
+          recipientUserId: child1Id,
+          dueDate: DateTime.now().toUtc(),
+          createdAt: DateTime.now().toUtc(),
+          status: 'pending',
+        );
+        final c2 = Promise(
+          title: 'C2 for Child2',
+          promisedTo: '',
+          recipientUserId: child2Id,
+          dueDate: DateTime.now().toUtc(),
+          createdAt: DateTime.now().toUtc(),
+          status: 'pending',
+        );
+        final createdParent = await endpoints.promise.createGroupedPromise(
+          creatorSession,
+          parent,
+          [c1, c2],
+        );
 
-      final children = await endpoints.promise.getChildPromises(
-        creatorSession,
-        createdParent.id!,
-      );
-      final child1Db = children.firstWhere(
-        (c) => c.recipientUserId == child1Id,
-      );
-      final child2Db = children.firstWhere(
-        (c) => c.recipientUserId == child2Id,
-      );
+        // 1. Assigned child recipient CAN retrieve approved ParentProjectMetadata
+        final parentMeta = await endpoints.promise.getParentProjectMetadata(
+          child1Session,
+          createdParent.id!,
+        );
+        expect(parentMeta.id, createdParent.id);
+        expect(parentMeta.title, 'Parent Project');
+        expect(parentMeta.description, 'Project Scope Document');
+        expect(parentMeta.commitmentType, 'freelance');
 
-      // child1 can get child1
-      expect(
-        await endpoints.promise.getPromise(child1Session, child1Db.id!),
-        isNotNull,
-      );
+        // 2. Unrelated user CANNOT retrieve parent project metadata
+        await expectLater(
+          endpoints.promise.getParentProjectMetadata(
+            unrelatedSession,
+            createdParent.id!,
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('do not have access'),
+            ),
+          ),
+        );
 
-      // child1 cannot get child2
-      await expectLater(
-        endpoints.promise.getPromise(child1Session, child2Db.id!),
-        throwsA(isA<ArgumentError>()),
-      );
+        // 3. Child recipient CANNOT retrieve full parent Promise DB entity via getPromise
+        await expectLater(
+          endpoints.promise.getPromise(child1Session, createdParent.id!),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('do not have access'),
+            ),
+          ),
+        );
 
-      // child1 cannot get parent since they are neither creator nor recipient
-      await expectLater(
-        endpoints.promise.getPromise(child1Session, createdParent.id!),
-        throwsA(isA<ArgumentError>()),
-      );
-    });
+        // 4. Coordinator (creator) retains full access via getPromise and getParentProjectMetadata
+        final creatorFullPromise = await endpoints.promise.getPromise(
+          creatorSession,
+          createdParent.id!,
+        );
+        expect(creatorFullPromise, isNotNull);
+        expect(creatorFullPromise!.id, createdParent.id);
+
+        final creatorMeta = await endpoints.promise.getParentProjectMetadata(
+          creatorSession,
+          createdParent.id!,
+        );
+        expect(creatorMeta.title, 'Parent Project');
+
+        // 5. Child recipient CANNOT read parent activities or add activities
+        await expectLater(
+          endpoints.promise.getActivities(child1Session, createdParent.id!),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('direct participant access'),
+            ),
+          ),
+        );
+
+        await expectLater(
+          endpoints.promise.addActivity(
+            child1Session,
+            createdParent.id!,
+            'update',
+            'Attempted parent update',
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('direct participant access'),
+            ),
+          ),
+        );
+
+        // 6. Sibling task isolation: Child 1 calling getChildPromises gets ONLY Child 1 task
+        final child1Tasks = await endpoints.promise.getChildPromises(
+          child1Session,
+          createdParent.id!,
+        );
+        expect(child1Tasks.length, 1);
+        expect(child1Tasks[0].title, 'C1 for Child1');
+      },
+    );
+
+    test(
+      'legacy group parents with null or SQL default personal commitmentType resolve to team while standalone remains personal',
+      () async {
+        final creatorSession = sessionBuilder.copyWith(
+          authentication: AuthenticationOverride.authenticationInfo(
+            creatorId,
+            {},
+          ),
+        );
+
+        final legacyParent = Promise(
+          title: 'Legacy Group Parent',
+          promisedTo: '',
+          dueDate: DateTime.now().toUtc(),
+          createdAt: DateTime.now().toUtc(),
+          status: 'pending',
+          commitmentType: 'personal', // SQL migration column default
+        );
+        final c1 = Promise(
+          title: 'Child 1',
+          promisedTo: '',
+          recipientUserId: child1Id,
+          dueDate: DateTime.now().toUtc(),
+          createdAt: DateTime.now().toUtc(),
+          status: 'pending',
+          commitmentType: 'personal', // SQL migration column default
+        );
+
+        final createdParent = await endpoints.promise.createGroupedPromise(
+          creatorSession,
+          legacyParent,
+          [c1],
+        );
+
+        final metadata = await endpoints.promise.getParentProjectMetadata(
+          creatorSession,
+          createdParent.id!,
+        );
+
+        expect(metadata.commitmentType, 'team');
+
+        final standalone = await endpoints.promise.createPromise(
+          creatorSession,
+          Promise(
+            title: 'Standalone Personal',
+            promisedTo: 'Friend',
+            recipientUserId: child1Id,
+            dueDate: DateTime.now().toUtc(),
+            createdAt: DateTime.now().toUtc(),
+            status: 'pending',
+            commitmentType: 'personal',
+          ),
+        );
+
+        expect(standalone.commitmentType, 'personal');
+      },
+    );
+
+    test(
+      'creating a group promise with invalid commitmentType is rejected',
+      () async {
+        final creatorSession = sessionBuilder.copyWith(
+          authentication: AuthenticationOverride.authenticationInfo(
+            creatorId,
+            {},
+          ),
+        );
+
+        final parent = Promise(
+          title: 'Invalid Group Parent',
+          promisedTo: '',
+          dueDate: DateTime.now().toUtc(),
+          createdAt: DateTime.now().toUtc(),
+          status: 'pending',
+          commitmentType: 'invalid_type',
+        );
+
+        final c1 = Promise(
+          title: 'Child 1',
+          promisedTo: '',
+          recipientUserId: child1Id,
+          dueDate: DateTime.now().toUtc(),
+          createdAt: DateTime.now().toUtc(),
+          status: 'pending',
+        );
+
+        await expectLater(
+          endpoints.promise.createGroupedPromise(
+            creatorSession,
+            parent,
+            [c1],
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('Invalid commitment type'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'getChildPromises sorts explicitly ordered milestones first, followed by fallback due date sorting',
+      () async {
+        final creatorSession = sessionBuilder.copyWith(
+          authentication: AuthenticationOverride.authenticationInfo(
+            creatorId,
+            {},
+          ),
+        );
+
+        final now = DateTime.now().toUtc();
+
+        final parent = Promise(
+          title: 'Ordering Parent',
+          promisedTo: '',
+          dueDate: now,
+          createdAt: now,
+          status: 'pending',
+        );
+
+        // Unordered child with earliest due date
+        final cUnordered = Promise(
+          title: 'Unordered Child',
+          promisedTo: '',
+          recipientUserId: child1Id,
+          dueDate: now.add(const Duration(days: 1)),
+          createdAt: now,
+          status: 'pending',
+          milestoneOrder: null,
+        );
+
+        // Milestone 2 with later due date
+        final c2 = Promise(
+          title: 'Milestone 2',
+          promisedTo: '',
+          recipientUserId: child1Id,
+          dueDate: now.add(const Duration(days: 10)),
+          createdAt: now,
+          status: 'pending',
+          milestoneOrder: 2,
+        );
+
+        // Milestone 1 with earlier due date
+        final c1 = Promise(
+          title: 'Milestone 1',
+          promisedTo: '',
+          recipientUserId: child1Id,
+          dueDate: now.add(const Duration(days: 5)),
+          createdAt: now,
+          status: 'pending',
+          milestoneOrder: 1,
+        );
+
+        final createdParent = await endpoints.promise.createGroupedPromise(
+          creatorSession,
+          parent,
+          [cUnordered, c2, c1],
+        );
+
+        final children = await endpoints.promise.getChildPromises(
+          creatorSession,
+          createdParent.id!,
+        );
+
+        expect(children.length, 3);
+        expect(children[0].title, 'Milestone 1');
+        expect(children[1].title, 'Milestone 2');
+        expect(children[2].title, 'Unordered Child');
+      },
+    );
 
     test(
       'transaction rolls back completely if any child has invalid or unaccepted recipient',

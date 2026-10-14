@@ -16,3 +16,5 @@ fields:
   parentPromiseId: int?
   recipientAccepted: bool, default=true
   recipientAcceptedAt: DateTime?
+  commitmentType: String?, default="personal"
+  milestoneOrder: int?

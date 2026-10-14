@@ -744,6 +744,25 @@ class Endpoints extends _is.EndpointDispatch {
                     params['id'],
                   ),
         ),
+        'getParentProjectMetadata': _is.MethodConnector(
+          name: 'getParentProjectMetadata',
+          params: {
+            'parentPromiseId': _is.ParameterDescription(
+              name: 'parentPromiseId',
+              type: _is.getType<int>(),
+              nullable: false,
+            ),
+          },
+          call:
+              (
+                _is.Session session,
+                Map<String, dynamic> params,
+              ) async => (endpoints['promise'] as _itrz4nk3.PromiseEndpoint)
+                  .getParentProjectMetadata(
+                    session,
+                    params['parentPromiseId'],
+                  ),
+        ),
         'getChildPromises': _is.MethodConnector(
           name: 'getChildPromises',
           params: {
