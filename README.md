@@ -210,6 +210,24 @@ flutter test
 
 ---
 
+## Database Migrations and Deployment
+
+- **v0.4.0 Migration Artifacts:** The database migration for this release is located at
+  `promise_server/migrations/20261013172415430-v0-4-0-core-model/`.
+- **Additive Schema Updates:** This migration adds the `commitmentType` and `milestoneOrder` columns
+  to the `promise` table.
+- **Serverpod Cloud Deployments:** Serverpod Cloud automatically applies pending database migrations
+  during deployment.
+- **Self-Hosted Deployments:** For self-hosted instances, migrations must be applied to PostgreSQL
+  using the appropriate Serverpod migration workflow (`serverpod apply-migrations` or executing
+  `migration.sql`).
+- **Deployment Order Constraint:** The backend deployment must succeed before deploying client
+  application updates that invoke the new `getParentProjectMetadata` RPC endpoint.
+- **Production Verification:** Live cloud-storage (AWS S3/GCP), physical-device testing, and
+  deployed Serverpod Cloud `FutureCall` execution checks remain part of production verification.
+
+---
+
 ## Testing & Verification
 
 ### Automated Backend Tests (`dart test -j 1`)
