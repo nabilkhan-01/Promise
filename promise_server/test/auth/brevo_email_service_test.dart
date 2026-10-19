@@ -1,17 +1,21 @@
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:promise_server/src/auth/brevo_email_service.dart';
 import 'package:serverpod/serverpod.dart';
 import 'package:test/test.dart';
+
 import '../integration/test_tools/serverpod_test_tools.dart';
 
 void main() {
-  withServerpod('Given BrevoEmailService email delivery', (sessionBuilder,
-      endpoints,) {
+  withServerpod('Given BrevoEmailService email delivery', (
+    sessionBuilder,
+    endpoints,
+  ) {
     test(
       'successful registration email delivery with valid credentials',
-          () async {
+      () async {
         final session = sessionBuilder.build();
 
         final mockClient = MockClient((request) async {
@@ -102,7 +106,7 @@ void main() {
         ),
         throwsA(
           isA<Exception>().having(
-                (e) => e.toString(),
+            (e) => e.toString(),
             'message',
             contains('BrevoDeliveryError'),
           ),
@@ -112,7 +116,7 @@ void main() {
 
     test(
       'fails clearly when brevoSenderEmail is a placeholder or missing',
-          () async {
+      () async {
         final session = sessionBuilder.build();
         session.passwords['brevoApiKey'] = 'test-api-key-123';
         session.passwords['brevoSenderEmail'] = 'noreply@example.com';
@@ -129,7 +133,7 @@ void main() {
           ),
           throwsA(
             isA<Exception>().having(
-                  (e) => e.toString(),
+              (e) => e.toString(),
               'message',
               contains('BrevoDeliveryError'),
             ),
@@ -138,45 +142,42 @@ void main() {
       },
     );
 
-    test(
-      'throws BrevoDeliveryError when Brevo API rejects request with 400 Bad Request',
-          () async {
-        final session = sessionBuilder.build();
+    test('throws BrevoDeliveryError when Brevo API rejects request with 400 Bad Request', () async {
+      final session = sessionBuilder.build();
 
-        final mockClient = MockClient((request) async {
-          return http.Response(
-            jsonEncode({
-              'code': 'invalid_parameter',
-              'message': 'sender email not verified',
-            }),
-            400,
-          );
-        });
-
-        session.passwords['brevoApiKey'] = 'test-api-key-123';
-        session.passwords['brevoSenderEmail'] = 'unverified@customdomain.com';
-
-        await expectLater(
-          BrevoEmailService.sendRegistrationVerificationCode(
-            session,
-            accountRequestId: UuidValue.fromString(
-              '11111111-1111-4111-a111-111111111111',
-            ),
-            email: 'user@example.com',
-            transaction: null,
-            verificationCode: '123456',
-            httpClient: mockClient,
-          ),
-          throwsA(
-            isA<Exception>().having(
-                  (e) => e.toString(),
-              'message',
-              contains('BrevoDeliveryError'),
-            ),
-          ),
+      final mockClient = MockClient((request) async {
+        return http.Response(
+          jsonEncode({
+            'code': 'invalid_parameter',
+            'message': 'sender email not verified',
+          }),
+          400,
         );
-      },
-    );
+      });
+
+      session.passwords['brevoApiKey'] = 'test-api-key-123';
+      session.passwords['brevoSenderEmail'] = 'unverified@customdomain.com';
+
+      await expectLater(
+        BrevoEmailService.sendRegistrationVerificationCode(
+          session,
+          accountRequestId: UuidValue.fromString(
+            '11111111-1111-4111-a111-111111111111',
+          ),
+          email: 'user@example.com',
+          transaction: null,
+          verificationCode: '123456',
+          httpClient: mockClient,
+        ),
+        throwsA(
+          isA<Exception>().having(
+            (e) => e.toString(),
+            'message',
+            contains('BrevoDeliveryError'),
+          ),
+        ),
+      );
+    });
 
     test('throws BrevoDeliveryError on network exception', () async {
       final session = sessionBuilder.build();
@@ -201,7 +202,7 @@ void main() {
         ),
         throwsA(
           isA<Exception>().having(
-                (e) => e.toString(),
+            (e) => e.toString(),
             'message',
             contains('BrevoDeliveryError'),
           ),
