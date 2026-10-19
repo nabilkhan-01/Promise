@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 import 'package:serverpod/serverpod.dart';
 
@@ -12,7 +13,7 @@ class BrevoEmailService {
     required String email,
     required Transaction? transaction,
     required String verificationCode,
-        http.Client? httpClient,
+    http.Client? httpClient,
   }) async {
     await _sendVerificationCode(
       session: session,
@@ -30,7 +31,7 @@ class BrevoEmailService {
     required UuidValue passwordResetRequestId,
     required Transaction? transaction,
     required String verificationCode,
-        http.Client? httpClient,
+    http.Client? httpClient,
   }) async {
     await _sendVerificationCode(
       session: session,
@@ -58,7 +59,7 @@ class BrevoEmailService {
 
     final senderEmail =
         session.serverpod.getPassword('brevoSenderEmail') ??
-            session.passwords['brevoSenderEmail'];
+        session.passwords['brevoSenderEmail'];
 
     final senderName =
         session.serverpod.getPassword('brevoSenderName') ??
@@ -74,9 +75,7 @@ class BrevoEmailService {
     }
 
     if (senderEmail == null ||
-        senderEmail
-            .trim()
-            .isEmpty ||
+        senderEmail.trim().isEmpty ||
         senderEmail.contains('example.com') ||
         senderEmail.contains('placeholder')) {
       session.log(
@@ -151,9 +150,7 @@ Promise Team
 ''';
 
     session.log(
-      '[EmailIDP] Attempting Brevo API email delivery (Operation: ${isPasswordReset
-          ? 'PasswordReset'
-          : 'Registration'})',
+      '[EmailIDP] Attempting Brevo API email delivery (Operation: ${isPasswordReset ? 'PasswordReset' : 'Registration'})',
       level: LogLevel.info,
     );
 
@@ -168,14 +165,9 @@ Promise Team
           'content-type': 'application/json',
         },
         body: jsonEncode({
-          'sender': {
-            'name': senderName,
-            'email': senderEmail,
-          },
+          'sender': {'name': senderName, 'email': senderEmail},
           'to': [
-            {
-              'email': cleanEmail,
-            },
+            {'email': cleanEmail},
           ],
           'subject': subject,
           'htmlContent': bodyHtml,
@@ -193,10 +185,7 @@ Promise Team
         } catch (_) {}
 
         session.log(
-          '[EmailIDP] Brevo API request accepted (Operation: ${isPasswordReset
-              ? 'PasswordReset'
-              : 'Registration'}, Status: ${response
-              .statusCode}, MessageId: ${messageId ?? 'none'})',
+          '[EmailIDP] Brevo API request accepted (Operation: ${isPasswordReset ? 'PasswordReset' : 'Registration'}, Status: ${response.statusCode}, MessageId: ${messageId ?? 'none'})',
           level: LogLevel.info,
         );
         return;
@@ -205,10 +194,7 @@ Promise Team
             ? '${response.body.substring(0, 300)}...'
             : response.body;
         session.log(
-          '[EmailIDP] Brevo API request rejected (Operation: ${isPasswordReset
-              ? 'PasswordReset'
-              : 'Registration'}, Status: ${response
-              .statusCode}, Body: $safeResponseBody)',
+          '[EmailIDP] Brevo API request rejected (Operation: ${isPasswordReset ? 'PasswordReset' : 'Registration'}, Status: ${response.statusCode}, Body: $safeResponseBody)',
           level: LogLevel.error,
         );
         throw Exception('BrevoDeliveryError');
