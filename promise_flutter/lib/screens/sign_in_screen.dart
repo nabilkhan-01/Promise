@@ -5,6 +5,7 @@ import 'package:serverpod_auth_idp_flutter/serverpod_auth_idp_flutter.dart';
 import 'package:serverpod_auth_idp_flutter/src/common/exceptions.dart';
 import '../client.dart';
 import '../utils/disposable_email_validator.dart';
+import '../widgets/promise_verification_code_input.dart';
 
 class PromiseEmailAuthController extends EmailAuthController {
   PromiseEmailAuthController({
@@ -266,13 +267,36 @@ class _SignInScreenState extends State<SignInScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-                SignInWidget(
-                  client: client,
-                  emailSignInWidget: EmailSignInWidget(
-                    controller: _emailAuthController,
-                  ),
-                  onAuthenticated: () {},
-                  onError: _handleError,
+                ListenableBuilder(
+                  listenable: _emailAuthController,
+                  builder: (context, _) {
+                    final screen = _emailAuthController.currentScreen;
+                    if (screen == EmailFlowScreen.verifyRegistration ||
+                        screen == EmailFlowScreen.verifyPasswordReset) {
+                      final isPasswordReset =
+                          screen == EmailFlowScreen.verifyPasswordReset;
+                      final title = isPasswordReset
+                          ? 'Verify Reset Code'
+                          : 'Verify Account';
+
+                      return PromiseVerificationForm(
+                        title: title,
+                        controller: _emailAuthController,
+                        onCompleted: isPasswordReset
+                            ? _emailAuthController.verifyPasswordResetCode
+                            : _emailAuthController.verifyRegistrationCode,
+                      );
+                    }
+
+                    return SignInWidget(
+                      client: client,
+                      emailSignInWidget: EmailSignInWidget(
+                        controller: _emailAuthController,
+                      ),
+                      onAuthenticated: () {},
+                      onError: _handleError,
+                    );
+                  },
                 ),
               ],
             ),

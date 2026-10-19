@@ -12,10 +12,13 @@ Promise is built around two fundamental rules:
 
 ## What's New in v0.5.0
 
-Version 0.5.0 introduces optional financial tracking and an enhanced mobile-first user experience:
+Version 0.5.0 introduces optional financial tracking, a privacy-first authentication UX, robust
+email delivery verification, and an enhanced mobile-first user experience:
 
 - **Dedicated `promise_currency` Package:** Pure-Dart shared package containing the authoritative SIX / ISO 4217 Table A.1 dataset (`IsoCurrencyCatalogue`) and exact string-to-minor-unit parser/formatter (`CurrencyUtils`). Supports all worldwide active currencies (0, 2, and 3 minor-unit decimal precision) without floating-point math or rounding drift.
-- **Optional Financial Terms:** Configure agreed contract totals, active ISO 4217 currencies, and Payer/Payee roles for 1-on-1 commitments or individual child milestones. Terms become strictly read-only once payment or refund records exist.
+- **Optional Financial Terms:** Configure agreed contract totals, active ISO 4217 currencies, and
+  Payer/Payee roles for 1-on-1 commitments or individual child milestones. Terms become strictly
+  read-only once payment or refund records exist. Creator-only mutation policy.
 - **Installment Schedules:** Multi-installment schedule entries (`PromisePaymentSchedule`) with sequence order, amounts, due dates, and cancellation audit metadata (`cancelledAt`, `cancelledByUserId`, `cancellationReason`).
 - **Offline Payment & Refund Recording:** Log external payments and refunds (`PromisePaymentRecord`). Refunds inherit `scheduleId` and `currency` from the original payment and enforce a strict refund ceiling ($\sum \text{confirmedRefunds} \le \text{originalPayment}$) protected by PostgreSQL row locking (`SELECT id FROM promise_payment_record ... FOR UPDATE`).
 - **Unified Two-Party Confirmation & Dispute:** Unified confirmation (`confirmPaymentRecord`) and dispute (`disputePaymentRecord`) endpoints with strict anti-self-confirmation and anti-self-dispute rules (`confirmerUserId != recorderUserId`).
@@ -25,11 +28,19 @@ Version 0.5.0 introduces optional financial tracking and an enhanced mobile-firs
   - **Refund History (`refundStatus`):** `none`, `partially_refunded`, `fully_refunded` preserving past payment history even when net settlement drops to 0.
   - **Active Dispute Indicator (`hasActiveDispute`):** Independent boolean flag highlighting pending disputes without altering numeric ledger totals.
 - **Multi-Currency Parent Project Overviews:** Group parent containers display aggregate totals grouped separately by currency (`GroupFinancialSummary`) without currency conversion or double-counting. Sibling child milestones remain strictly isolated.
-- **Mobile-First Flutter UX:**
+- **Mobile-First Flutter UX & Searchable Currency Picker:**
   - Searchable `CurrencyPickerModal` bottom sheet modal.
   - `SetFinancialTermsDialog` and `RecordPaymentDialog` with private evidence receipt attachment support via `AttachmentEndpoint`.
   - Embedded `FinancialSection` on `PromiseDetailsScreen` with progress bar, status badges, active dispute warning banner, installment schedule checklist, and payment/refund history cards with role-aware action buttons.
   - Responsive layouts verified across 320px, 360px, 390px, and 430px logical viewports with 1.3x system text scaling.
+- **Root-Cause Clipboard Privacy Protection:** Custom `PromiseVerificationCodeInput` passes
+  `onClipboardFound: null` to Pinput, 100% eliminating automatic background clipboard reads on
+  screen load, focus, or rebuild. Provides an explicit, user-triggered **"Paste Code from
+  Clipboard"** button.
+- **Brevo Email Delivery Validation & Logging:** Pre-flight configuration validation in
+  `BrevoEmailService` ensuring `brevoApiKey` and `brevoSenderEmail` are configured before network
+  requests. Rejects placeholder domains (`example.com`). Extracts Brevo's unique `messageId` for
+  delivery tracking and maps errors safely to `BrevoDeliveryError`.
 
 ---
 
@@ -40,13 +51,21 @@ Version 0.5.0 introduces optional financial tracking and an enhanced mobile-firs
 - **Adaptive Icon Styling:** Configured with a near-black background (`#121318`) and safe-zone padding to maintain logo visibility under circular, squircle, or rounded Android icon masking.
 - **App Name:** Displayed as **Promise** on the Android and iOS launcher screens.
 
-### Authentication & Email Delivery
+### Authentication, Email Delivery & Privacy
 - **Serverpod Auth Email IDP:** Email authentication managed by Serverpod Auth 4.0.
 - **Brevo REST API Email Delivery:** Transactional emails (registration and password resets) delivered via Brevo's HTTPS REST API (`POST https://api.brevo.com/v3/smtp/email`) on port 443.
-- **Reliable Duplicate-Account Signup Fix:** Pre-registration RPC check (`checkEmailRegistration`) and race-condition fallback that detects existing registered accounts before registration is initiated. Displays *"An account with this email already exists. Please sign in instead."* with a direct **Sign In** action preserving the entered email address, preventing duplicate registration requests or unnecessary verification emails.
-- **Server-Side Credentials:** Brevo API keys (`brevoApiKey`) are stored exclusively in Serverpod Cloud secrets / `config/passwords.yaml` and are never exposed to the Flutter client.
-- **Password Reset Flow:** Complete email-verified password reset with secure 6-digit code verification.
-- **Disposable Email Protection:** Authoritative server-side and client-side validation rejecting temporary/disposable email domain providers (e.g., Mailinator, TempMail).
+- **Pre-Flight Configuration Pre-Checks:** Validates `brevoApiKey` and `brevoSenderEmail` before
+  attempting delivery. Rejects placeholder sender emails (`noreply@example.com`). Parses Brevo's
+  unique `messageId` for log correlation.
+- **Clipboard Privacy Guard:** Eliminates background clipboard reads at the widget source via
+  `PromiseVerificationCodeInput`. Clipboard access occurs only upon explicit user tap on "Paste
+  Code".
+- **Duplicate-Account Signup Protection:** Pre-registration RPC check (`checkEmailRegistration`) and
+  race-condition fallback detecting existing registered accounts before registration is initiated.
+- **Password Reset Flow:** Complete email-verified password reset with secure 8-digit code
+  verification.
+- **Disposable Email Protection:** Server-side and client-side validation rejecting
+  temporary/disposable email domain providers (e.g., Mailinator, TempMail).
 - **Session Persistence & Sign Out:** Authenticated user sessions persist automatically across app restarts via `FlutterAuthSessionManager`.
 
 ### Friends System
@@ -179,21 +198,27 @@ flutter test
 - [x] All `promise_currency` tests passing (**14 / 14** tests).
 
 ### Automated Backend Tests (`promise_server` - `dart test -j 1`)
+
+- [x] Brevo email delivery pre-checks, messageId extraction, HTTP 400 rejection, and network failure
+  tests (`brevo_email_service_test.dart`).
 - [x] Attachment endpoint security & upload integration tests (`attachment_endpoint_test.dart`).
 - [x] Email IDP registration duplicate pre-checks (`email_idp_registration_test.dart`).
 - [x] Financial models & ORM schema tests (`financial_models_test.dart`).
-- [x] Financial RPC endpoint authorization, terms lock, refund ceiling, anti-self-confirmation, and 100% refund state tests (`financial_endpoint_test.dart`).
+- [x] Financial RPC endpoint authorization, creator-only terms lock, refund ceiling,
+  anti-self-confirmation, and 100% refund state tests (`financial_endpoint_test.dart`).
 - [x] Real PostgreSQL row-locking concurrency tests (`financial_concurrency_test.dart`).
 - [x] Friend endpoint concurrency with advisory locks (`friend_endpoint_test.dart`).
-- [x] All server integration tests passing (**81 / 81** tests).
+- [x] All server integration tests passing (**87 / 87** tests).
 
 ### Automated Flutter Tests (`promise_flutter` - `flutter test`)
+
+- [x] Clipboard Privacy Guard widget boundary tests (`clipboard_privacy_guard_test.dart`).
 - [x] Timezone-safe deadline rendering tests (`deadline_utils_test.dart`).
 - [x] Sign-in & email auth flow tests (`sign_in_screen_test.dart`).
 - [x] `IndicatorIconButton` widget tests (`indicator_icon_button_test.dart`).
 - [x] Mobile responsive layout tests across 320px, 360px, 390px, 430px viewports & 1.3x text scaling (`responsive_screens_test.dart`).
 - [x] Financial Section UI tests, minor-unit formatting, dispute banners, and searchable currency picker (`financial_section_test.dart`).
-- [x] All Flutter widget/unit tests passing (**35 / 35** tests).
+- [x] All Flutter widget/unit tests passing (**42 / 42** tests).
 
 ### Static Analysis
 - [x] `promise_currency`: Clean (**0 issues**).
@@ -205,6 +230,11 @@ flutter test
 
 ## Status
 
-Promise v0.5.0 is complete. All features — shared currency package, financial terms, payment schedules, offline payment/refund recording, two-party confirmation/dispute resolution, two-dimensional financial summaries, multi-currency parent project overviews, searchable currency picker, mobile-first responsive Flutter UI, and persistent in-app notifications — are implemented, verified, and passing all automated test suites across the monorepo workspace.
+Promise v0.5.0 is complete. All features — shared currency package, financial terms, payment
+schedules, offline payment/refund recording, two-party confirmation/dispute resolution,
+two-dimensional financial summaries, multi-currency parent project overviews, searchable currency
+picker, mobile-first responsive Flutter UI, root-cause clipboard privacy protection, Brevo email
+delivery pre-flight verification, and persistent in-app notifications — are implemented, verified,
+and passing all automated test suites across the monorepo workspace.
 
 **Repository:** [https://github.com/nabilkhan-01/Promise](https://github.com/nabilkhan-01/Promise)

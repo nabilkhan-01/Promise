@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:serverpod/serverpod.dart';
 
+/// Service managing Brevo REST API email delivery for Serverpod Auth IDP
+/// registration and password-reset verification codes.
 class BrevoEmailService {
   /// Sends a registration verification email via Brevo REST API.
   static Future<void> sendRegistrationVerificationCode(
@@ -10,12 +12,14 @@ class BrevoEmailService {
     required String email,
     required Transaction? transaction,
     required String verificationCode,
+        http.Client? httpClient,
   }) async {
     await _sendVerificationCode(
       session: session,
       recipientEmail: email,
       verificationCode: verificationCode,
       isPasswordReset: false,
+      httpClient: httpClient,
     );
   }
 
@@ -26,12 +30,14 @@ class BrevoEmailService {
     required UuidValue passwordResetRequestId,
     required Transaction? transaction,
     required String verificationCode,
+        http.Client? httpClient,
   }) async {
     await _sendVerificationCode(
       session: session,
       recipientEmail: email,
       verificationCode: verificationCode,
       isPasswordReset: true,
+      httpClient: httpClient,
     );
   }
 
@@ -42,6 +48,7 @@ class BrevoEmailService {
     required String recipientEmail,
     required String verificationCode,
     required bool isPasswordReset,
+    http.Client? httpClient,
   }) async {
     final cleanEmail = recipientEmail.trim().toLowerCase();
 
@@ -51,8 +58,7 @@ class BrevoEmailService {
 
     final senderEmail =
         session.serverpod.getPassword('brevoSenderEmail') ??
-        session.passwords['brevoSenderEmail'] ??
-        'noreply@example.com';
+            session.passwords['brevoSenderEmail'];
 
     final senderName =
         session.serverpod.getPassword('brevoSenderName') ??
@@ -62,6 +68,19 @@ class BrevoEmailService {
     if (apiKey == null || apiKey.trim().isEmpty) {
       session.log(
         '[EmailIDP] brevoApiKey secret not configured in passwords.yaml / Cloud secrets',
+        level: LogLevel.error,
+      );
+      throw Exception('BrevoDeliveryError');
+    }
+
+    if (senderEmail == null ||
+        senderEmail
+            .trim()
+            .isEmpty ||
+        senderEmail.contains('example.com') ||
+        senderEmail.contains('placeholder')) {
+      session.log(
+        '[EmailIDP] brevoSenderEmail is missing or set to a placeholder domain in passwords.yaml / Cloud secrets. Set brevoSenderEmail to a verified Brevo sender email.',
         level: LogLevel.error,
       );
       throw Exception('BrevoDeliveryError');
@@ -132,12 +151,16 @@ Promise Team
 ''';
 
     session.log(
-      '[EmailIDP] Attempting Brevo API email delivery for $cleanEmail (${isPasswordReset ? 'PasswordReset' : 'Registration'})',
+      '[EmailIDP] Attempting Brevo API email delivery (Operation: ${isPasswordReset
+          ? 'PasswordReset'
+          : 'Registration'})',
       level: LogLevel.info,
     );
 
+    final client = httpClient ?? http.Client();
+
     try {
-      final response = await http.post(
+      final response = await client.post(
         Uri.parse('https://api.brevo.com/v3/smtp/email'),
         headers: {
           'accept': 'application/json',
@@ -161,8 +184,19 @@ Promise Team
       );
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
+        String? messageId;
+        try {
+          final resJson = jsonDecode(response.body);
+          if (resJson is Map && resJson.containsKey('messageId')) {
+            messageId = resJson['messageId']?.toString();
+          }
+        } catch (_) {}
+
         session.log(
-          '[EmailIDP] Brevo API email delivery succeeded for $cleanEmail (Status: ${response.statusCode})',
+          '[EmailIDP] Brevo API request accepted (Operation: ${isPasswordReset
+              ? 'PasswordReset'
+              : 'Registration'}, Status: ${response
+              .statusCode}, MessageId: ${messageId ?? 'none'})',
           level: LogLevel.info,
         );
         return;
@@ -171,7 +205,10 @@ Promise Team
             ? '${response.body.substring(0, 300)}...'
             : response.body;
         session.log(
-          '[EmailIDP] Brevo API delivery failed for $cleanEmail (Status: ${response.statusCode}, Body: $safeResponseBody)',
+          '[EmailIDP] Brevo API request rejected (Operation: ${isPasswordReset
+              ? 'PasswordReset'
+              : 'Registration'}, Status: ${response
+              .statusCode}, Body: $safeResponseBody)',
           level: LogLevel.error,
         );
         throw Exception('BrevoDeliveryError');
@@ -179,13 +216,17 @@ Promise Team
     } catch (e, stack) {
       if (e is! Exception || !e.toString().contains('BrevoDeliveryError')) {
         session.log(
-          '[EmailIDP] Brevo API connection error for $cleanEmail: $e',
+          '[EmailIDP] Brevo API connection exception: $e',
           level: LogLevel.error,
           exception: e,
           stackTrace: stack,
         );
       }
       throw Exception('BrevoDeliveryError');
+    } finally {
+      if (httpClient == null) {
+        client.close();
+      }
     }
   }
 }

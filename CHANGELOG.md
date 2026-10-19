@@ -2,7 +2,7 @@
 
 All notable changes to the Promise project will be documented in this file.
 
-## v0.5.0 — Financial Tracking & Mobile UX Integration
+## v0.5.0 — Financial Tracking, Mobile UX & Auth Privacy/Email Integration
 
 ### Added
 - **Shared Currency Package (`promise_currency`):** Created pure-Dart sibling package containing `IsoCurrencyCatalogue` (backed by SIX / ISO 4217 Table A.1 dataset) and `CurrencyUtils` exact minor-unit parser/formatter supporting all active, official currencies (0, 2, 3 decimal precision) without floating-point math or rounding drift.
@@ -18,6 +18,14 @@ All notable changes to the Promise project will be documented in this file.
   - `SetFinancialTermsDialog`, `RecordPaymentDialog`, `DisputeRecordDialog`.
   - Embedded `FinancialSection` on `PromiseDetailsScreen` with progress bar, status badges, active dispute warning banner, installment schedule checklist, and payment/refund history cards with role-aware action buttons.
   - Mobile responsive layouts verified across 320px, 360px, 390px, and 430px logical viewports with 1.3x system text scaling.
+- **Root-Cause Clipboard Privacy Protection (`PromiseVerificationCodeInput`):** Custom OTP input
+  widget passing `onClipboardFound: null` to Pinput, 100% eliminating automatic background clipboard
+  reads on screen load, focus, or rebuild. Provides an explicit, user-triggered **"Paste Code from
+  Clipboard"** button.
+- **Brevo Email Delivery Validation & Logging:** Pre-flight configuration validation in
+  `BrevoEmailService` ensuring `brevoApiKey` and `brevoSenderEmail` are configured before network
+  requests. Rejects placeholder domains (`example.com`). Extracts Brevo's unique `messageId` for
+  delivery tracking and maps errors safely to `BrevoDeliveryError`.
 
 ### Improved
 - **Global Mobile UX & Accessibility:** Material 3 design system with $48\text{px}+$ touch targets, high-contrast badges, card borders (`outlineVariant`), rounded input decorations, and full responsive wrapping across narrow viewports.
