@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 import 'package:serverpod/serverpod.dart';
 
@@ -164,14 +165,9 @@ Promise Team
           'content-type': 'application/json',
         },
         body: jsonEncode({
-          'sender': {
-            'name': senderName,
-            'email': senderEmail,
-          },
+          'sender': {'name': senderName, 'email': senderEmail},
           'to': [
-            {
-              'email': cleanEmail,
-            },
+            {'email': cleanEmail},
           ],
           'subject': subject,
           'htmlContent': bodyHtml,
